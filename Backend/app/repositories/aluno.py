@@ -1,6 +1,8 @@
+
 from sqlalchemy.orm import Session
 
 from app.models.aluno import Aluno
+from app.models.caso_juridico import CasoJuridico
 from app.schemas.aluno import AlunoCreate
 
 
@@ -28,6 +30,22 @@ class AlunoRepository:
             db.query(Aluno)
             .filter(Aluno.id_usuario == id_usuario)
             .first()
+        )
+
+    @staticmethod
+    def listar_por_professor(db: Session, id_professor: int):
+        return (
+            db.query(Aluno)
+            .join(
+                CasoJuridico,
+                CasoJuridico.id_aluno_responsavel == Aluno.id_aluno
+            )
+            .filter(
+                CasoJuridico.id_professor_orientador == id_professor
+            )
+            .distinct()
+            .order_by(Aluno.id_aluno.desc())
+            .all()
         )
 
     @staticmethod

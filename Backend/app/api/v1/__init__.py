@@ -17,7 +17,8 @@ from app.api.v1.routers import (
     atividades,
     documentos,
     prazos,
-    historico_caso   
+    historico_caso,
+    auth,
 )
 
 
@@ -77,6 +78,11 @@ api_router_v1.include_router(
 # Módulo de Histórico de Casos.
 api_router_v1.include_router(
     historico_caso.router,
+)
+
+# Módulo de Autenticação.
+api_router_v1.include_router(
+    auth.router,
 )
 
 

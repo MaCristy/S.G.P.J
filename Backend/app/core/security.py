@@ -4,13 +4,11 @@ from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
 from pwdlib import PasswordHash
 
+from app.config.settings import settings
+
+
 # Configuração do algoritmo de hash de senhas
 password_hash = PasswordHash.recommended()
-
-# Configurações do token JWT
-SECRET_KEY = "TROQUE_PELA_CHAVE_SECRETA_DO_PROJETO"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 
 def gerar_hash_senha(senha: str) -> str:
@@ -34,15 +32,15 @@ def criar_token_acesso(dados: dict) -> str:
     dados_token = dados.copy()
 
     expiracao = datetime.now(timezone.utc) + timedelta(
-        minutes=ACCESS_TOKEN_EXPIRE_MINUTES
+        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
     )
 
     dados_token.update({"exp": expiracao})
 
     return jwt.encode(
         dados_token,
-        SECRET_KEY,
-        algorithm=ALGORITHM
+        settings.SECRET_KEY,
+        algorithm=settings.ALGORITHM
     )
 
 
@@ -53,8 +51,8 @@ def verificar_token(token: str):
     try:
         payload = jwt.decode(
             token,
-            SECRET_KEY,
-            algorithms=[ALGORITHM]
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM]
         )
 
         return payload

@@ -1,5 +1,7 @@
 
 from datetime import datetime
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
@@ -7,7 +9,7 @@ class UsuarioCreate(BaseModel):
     nome: str = Field(min_length=1, max_length=150)
     email_institucional: EmailStr
     senha: str = Field(min_length=8, max_length=128)
-    perfil: str = Field(min_length=1, max_length=50)
+    perfil: Literal["Aluno", "Professor", "Gestão"]
 
 
 class UsuarioResponse(BaseModel):
