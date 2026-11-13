@@ -1,0 +1,26 @@
+# Ambientes Virtuais
+.venv/
+venv/
+env/
+ENV/
+
+# Bytecode Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Configurações de Ambiente (Credenciais Sensíveis)
+.env
+.env.*
+!.env.example
+
+# Testes e Cobertura
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs e Uploads Temporários
+*.log
+uploads/
+temp/
+

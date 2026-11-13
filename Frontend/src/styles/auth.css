@@ -1,0 +1,271 @@
+.auth-page {
+    min-height: 650px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 45px 16px;
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 460px;
+    padding: 42px;
+    background: #fff;
+    border: 1px solid #D9DEE8;
+    border-radius: 18px;
+    box-shadow: 0 15px 45px #00387412;
+}
+
+.auth-heading {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.auth-symbol {
+    width: 58px;
+    height: 58px;
+    display: grid;
+    place-items: center;
+    margin: 0 auto 17px;
+    border-radius: 15px;
+    background: #003874;
+    border-bottom: 4px solid #E3B103;
+    color: white;
+    font: 36px Georgia, serif;
+}
+
+.auth-eyebrow {
+    color: #A15C00;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+}
+
+.auth-heading h1 {
+    margin: 12px 0 8px;
+    color: #003874;
+    font: 800 25px 'Manrope', sans-serif;
+}
+
+.auth-heading p {
+    color: #667085;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.auth-form label {
+    color: #202938;
+    font-size: 12px;
+    font-weight: 700;
+    margin-top: 8px;
+}
+
+.auth-form input {
+    width: 100%;
+    height: 46px;
+    padding: 0 13px;
+    border: 1px solid #D9DEE8;
+    border-radius: 8px;
+    outline: none;
+    color: #202938;
+    font-size: 13px;
+}
+
+.auth-form input:focus {
+    border-color: #003874;
+    box-shadow: 0 0 0 3px #00387415;
+}
+
+.password-field {
+    position: relative;
+}
+
+.password-field input {
+    padding-right: 45px;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: grid;
+    place-items: center;
+    border: none;
+    background: transparent;
+    color: #667085;
+    cursor: pointer;
+}
+
+.auth-submit {
+    height: 47px;
+    margin-top: 15px;
+    border: none;
+    border-radius: 8px;
+    background: #003874;
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background .2s;
+}
+
+.auth-submit:hover {
+    background: #064987;
+}
+
+.auth-register {
+    margin-top: 24px;
+    text-align: center;
+    color: #667085;
+    font-size: 12px;
+}
+
+.auth-register a {
+    color: #003874;
+    font-weight: 700;
+}
+
+.auth-security {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 25px;
+    padding-top: 18px;
+    border-top: 1px solid #D9DEE8;
+    color: #667085;
+    font-size: 10px;
+}
+
+.auth-security svg {
+    color: #16803C;
+}
+
+.auth-message {
+    margin: 5px 0;
+    padding: 10px;
+    border-radius: 7px;
+    background: #EAF2FB;
+    color: #003874;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+@media (max-width: 480px) {
+    .auth-card {
+        padding: 28px 22px;
+    }
+}
+
+.forgot-password {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+
+.forgot-password a {
+  color: #003874;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.forgot-password a:hover {
+  color: #A15C00;
+  text-decoration: underline;
+}
+
+/* CADASTRO */
+
+
+.cadastro-page {
+    padding-top: 35px;
+    padding-bottom: 35px;
+}
+
+.cadastro-card {
+    max-width: 520px;
+}
+
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 25px;
+    color: #667085;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.back-link:hover {
+    color: #003874;
+}
+
+.profile-selector {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 24px;
+}
+
+.profile-option {
+    min-height: 82px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 8px;
+    border: 1px solid #D9DEE8;
+    border-radius: 10px;
+    background: white;
+    color: #667085;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: .2s;
+}
+
+.profile-option.selected {
+    border: 1.5px solid #003874;
+    background: #EAF2FB;
+    color: #003874;
+}
+
+.profile-option:hover {
+    border-color: #003874;
+}
+
+.approval-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 12px;
+    padding: 13px;
+    border: 1px solid #F0DCA1;
+    border-radius: 8px;
+    background: #FFF9E8;
+    color: #805B00;
+}
+
+.approval-notice svg {
+    flex-shrink: 0;
+}
+
+.approval-notice p {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+@media (max-width: 380px) {
+    .profile-selector {
+        grid-template-columns: 1fr;
+    }
+}
