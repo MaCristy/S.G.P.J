@@ -14,6 +14,22 @@ class ProfessorService:
         return ProfessorRepository.listar(db)
 
     @staticmethod
+    def buscar_por_usuario(db: Session, id_usuario: int):
+        professor = ProfessorRepository.buscar_por_usuario(
+            db, id_usuario
+        )
+
+        if not professor:
+            raise LookupError("Cadastro de professor não encontrado.")
+
+        if professor.situacao != "Ativo":
+            raise PermissionError(
+                "O cadastro do professor não está ativo."
+            )
+
+        return professor
+
+    @staticmethod
     def buscar_por_id(db: Session, id_professor: int):
         professor = ProfessorRepository.buscar_por_id(
             db, id_professor
