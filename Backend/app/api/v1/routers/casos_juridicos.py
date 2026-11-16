@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db
+from app.api.deps import get_db, get_current_user, check_role
+from app.models.usuario import Usuario
 from app.schemas.caso_juridico import (
     CasoJuridicoCreate,
     CasoJuridicoUpdate,
@@ -17,12 +18,43 @@ router = APIRouter(
 )
 
 
+
 @router.get(
     "/",
     response_model=list[CasoJuridicoResponse]
 )
-def listar_casos(db: Session = Depends(get_db)):
-    return CasoJuridicoService.listar(db)
+def listar_casos(
+    db: Session = Depends(get_db),
+    usuario_atual: Usuario = Depends(get_current_user)
+):
+    try:
+        if usuario_atual.perfil == "Gestão":
+            return CasoJuridicoService.listar(db)
+
+        if usuario_atual.perfil == "Aluno":
+            return CasoJuridicoService.listar_por_aluno(
+                db,
+                usuario_atual.id_usuario
+            )
+
+        if usuario_atual.perfil == "Professor":
+            return CasoJuridicoService.listar_por_professor(
+                db,
+                usuario_atual.id_usuario
+            )
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Você não possui permissão para listar casos jurídicos."
+        )
+
+    except LookupError as erro:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(erro)
+        )
+
+
 
 
 @router.get(
@@ -31,17 +63,43 @@ def listar_casos(db: Session = Depends(get_db)):
 )
 def listar_casos_por_assistido(
     id_assistido: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    usuario_atual: Usuario = Depends(get_current_user)
 ):
     try:
-        return CasoJuridicoService.listar_por_assistido(
-            db, id_assistido
-        )
+        if usuario_atual.perfil == "Gestão":
+            return CasoJuridicoService.listar_por_assistido(
+                db, id_assistido
+            )
+
+        if usuario_atual.perfil == "Aluno":
+            casos = CasoJuridicoService.listar_por_aluno(
+                db, usuario_atual.id_usuario
+            )
+
+        elif usuario_atual.perfil == "Professor":
+            casos = CasoJuridicoService.listar_por_professor(
+                db, usuario_atual.id_usuario
+            )
+
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Você não possui permissão para consultar esses casos."
+            )
+
+        return [
+            caso for caso in casos
+            if caso.id_assistido == id_assistido
+        ]
+
     except LookupError as erro:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(erro)
         )
+
+
 
 
 @router.get(
@@ -50,15 +108,45 @@ def listar_casos_por_assistido(
 )
 def buscar_caso(
     id_caso: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    usuario_atual: Usuario = Depends(get_current_user)
 ):
     try:
-        return CasoJuridicoService.buscar_por_id(db, id_caso)
+        if usuario_atual.perfil == "Gestão":
+            return CasoJuridicoService.buscar_por_id(
+                db, id_caso
+            )
+
+        if usuario_atual.perfil == "Aluno":
+            casos = CasoJuridicoService.listar_por_aluno(
+                db, usuario_atual.id_usuario
+            )
+
+        elif usuario_atual.perfil == "Professor":
+            casos = CasoJuridicoService.listar_por_professor(
+                db, usuario_atual.id_usuario
+            )
+
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Você não possui permissão para consultar este caso."
+            )
+
+        for caso in casos:
+            if caso.id_caso == id_caso:
+                return caso
+
+        raise LookupError(
+            "Caso jurídico não encontrado ou sem vínculo autorizado."
+        )
+
     except LookupError as erro:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(erro)
         )
+
 
 
 @router.post(
@@ -68,7 +156,8 @@ def buscar_caso(
 )
 def criar_caso(
     dados: CasoJuridicoCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    usuario_atual: Usuario = Depends(check_role("Gestão"))
 ):
     try:
         return CasoJuridicoService.criar(db, dados)
@@ -86,6 +175,8 @@ def criar_caso(
         )
 
 
+
+
 @router.patch(
     "/{id_caso}",
     response_model=CasoJuridicoResponse
@@ -93,19 +184,20 @@ def criar_caso(
 def atualizar_caso(
     id_caso: int,
     dados: CasoJuridicoUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    usuario_atual: Usuario = Depends(check_role("Gestão"))
 ):
-    caso = CasoJuridicoService.buscar_por_id(db, id_caso)
-
-    dados_atualizados = dados.model_dump(exclude_unset=True)
-
-    if not dados_atualizados:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Nenhum dado foi enviado para atualização."
-        )
-
     try:
+        caso = CasoJuridicoService.buscar_por_id(db, id_caso)
+
+        dados_atualizados = dados.model_dump(exclude_unset=True)
+
+        if not dados_atualizados:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Nenhum dado foi enviado para atualização."
+            )
+
         if "codigo_interno" in dados_atualizados:
             codigo = dados_atualizados["codigo_interno"]
 
@@ -186,6 +278,10 @@ def atualizar_caso(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(erro)
         )
+
+    except HTTPException:
+        db.rollback()
+        raise
 
     except Exception:
         db.rollback()

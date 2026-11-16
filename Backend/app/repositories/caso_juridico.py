@@ -1,3 +1,4 @@
+
 from sqlalchemy.orm import Session
 
 from app.models.caso_juridico import CasoJuridico
@@ -40,6 +41,28 @@ class CasoJuridicoRepository:
         )
 
     @staticmethod
+    def listar_por_aluno(db: Session, id_aluno: int):
+        return (
+            db.query(CasoJuridico)
+            .filter(
+                CasoJuridico.id_aluno_responsavel == id_aluno
+            )
+            .order_by(CasoJuridico.id_caso.desc())
+            .all()
+        )
+
+    @staticmethod
+    def listar_por_professor(db: Session, id_professor: int):
+        return (
+            db.query(CasoJuridico)
+            .filter(
+                CasoJuridico.id_professor_orientador == id_professor
+            )
+            .order_by(CasoJuridico.id_caso.desc())
+            .all()
+        )
+
+    @staticmethod
     def criar(db: Session, dados: CasoJuridicoCreate):
         caso = CasoJuridico(**dados.model_dump())
 
@@ -52,4 +75,3 @@ class CasoJuridicoRepository:
             setattr(caso, campo, valor)
 
         return caso
-        

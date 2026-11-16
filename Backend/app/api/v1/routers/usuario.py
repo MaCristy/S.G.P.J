@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, get_current_user, check_role
 from app.models.usuario import Usuario
-from app.schemas.usuario import UsuarioCreate, UsuarioResponse
+from app.schemas.usuario import UsuarioCreate, UsuarioUpdate, UsuarioResponse
 from app.services.usuario import UsuarioService
 
 
@@ -68,6 +68,35 @@ def criar_usuario(
 ):
     try:
         return UsuarioService.criar(db, dados)
+
+    except ValueError as erro:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(erro)
+        )
+
+
+@router.patch(
+    "/{id_usuario}",
+    response_model=UsuarioResponse,
+    status_code=status.HTTP_200_OK
+)
+def atualizar_usuario(
+    id_usuario: int,
+    dados: UsuarioUpdate,
+    db: Session = Depends(get_db),
+    usuario_atual: Usuario = Depends(check_role("Gestão"))
+):
+    try:
+        return UsuarioService.atualizar(
+            db, id_usuario, dados
+        )
+
+    except LookupError as erro:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(erro)
+        )
 
     except ValueError as erro:
         raise HTTPException(

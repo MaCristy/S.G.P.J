@@ -7,18 +7,114 @@ from sqlalchemy import text
 
 from app.repositories.atividade import AtividadeRepository
 from app.schemas.atividade import AtividadeCreate, AtividadeUpdate
+from app.models.usuario import Usuario
 
 
 class AtividadeService:
 
     @staticmethod
-    def listar(db: Session):
-        return AtividadeRepository.listar(db)
+    def _buscar_id_aluno(db: Session, id_usuario: int):
+        resultado = db.execute(
+            text("""
+                SELECT id_aluno
+                FROM alunos
+                WHERE id_usuario = :id_usuario
+            """),
+            {"id_usuario": id_usuario}
+        ).first()
+
+        return resultado.id_aluno if resultado else None
 
     @staticmethod
-    def buscar_por_id(db: Session, id_atividade: int):
-        atividade = AtividadeRepository.buscar_por_id(
-            db, id_atividade
+    def _buscar_id_professor(db: Session, id_usuario: int):
+        resultado = db.execute(
+            text("""
+                SELECT id_professor
+                FROM professores
+                WHERE id_usuario = :id_usuario
+                  AND situacao = 'Ativo'
+            """),
+            {"id_usuario": id_usuario}
+        ).first()
+
+        return resultado.id_professor if resultado else None
+
+    @staticmethod
+    def _buscar_atividade_permitida(
+        db: Session,
+        id_atividade: int,
+        usuario: Usuario
+    ):
+        if usuario.perfil == "Gestão":
+            return AtividadeRepository.buscar_por_id(
+                db, id_atividade
+            )
+
+        if usuario.perfil == "Aluno":
+            id_aluno = AtividadeService._buscar_id_aluno(
+                db, usuario.id_usuario
+            )
+
+            if not id_aluno:
+                return None
+
+            return AtividadeRepository.buscar_por_id_e_aluno(
+                db, id_atividade, id_aluno
+            )
+
+        if usuario.perfil == "Professor":
+            id_professor = AtividadeService._buscar_id_professor(
+                db, usuario.id_usuario
+            )
+
+            if not id_professor:
+                return None
+
+            return AtividadeRepository.buscar_por_id_e_professor(
+                db, id_atividade, id_professor
+            )
+
+        raise PermissionError("Perfil sem permissão para acessar atividades.")
+
+    @staticmethod
+    def listar(db: Session, usuario: Usuario):
+        if usuario.perfil == "Gestão":
+            return AtividadeRepository.listar(db)
+
+        if usuario.perfil == "Aluno":
+            id_aluno = AtividadeService._buscar_id_aluno(
+                db, usuario.id_usuario
+            )
+
+            if not id_aluno:
+                return []
+
+            return AtividadeRepository.listar_por_aluno(
+                db, id_aluno
+            )
+
+        if usuario.perfil == "Professor":
+            id_professor = AtividadeService._buscar_id_professor(
+                db, usuario.id_usuario
+            )
+
+            if not id_professor:
+                return []
+
+            return AtividadeRepository.listar_por_professor(
+                db, id_professor
+            )
+
+        raise PermissionError("Perfil sem permissão para consultar atividades.")
+
+    @staticmethod
+    def buscar_por_id(
+        db: Session,
+        id_atividade: int,
+        usuario: Usuario
+    ):
+        atividade = AtividadeService._buscar_atividade_permitida(
+            db, id_atividade, usuario
         )
 
         if not atividade:
@@ -27,8 +123,11 @@ class AtividadeService:
         return atividade
 
     @staticmethod
-    def listar_por_caso(db: Session, id_caso: int):
-
+    def listar_por_caso(
+        db: Session,
+        id_caso: int,
+        usuario: Usuario
+    ):
         caso = db.execute(
             text("""
                 SELECT id_caso
@@ -41,36 +140,58 @@ class AtividadeService:
         if not caso:
             raise LookupError("Caso jurídico não encontrado.")
 
-        return AtividadeRepository.listar_por_caso(
-            db, id_caso
-        )
+        if usuario.perfil == "Gestão":
+            return AtividadeRepository.listar_por_caso(
+                db, id_caso
+            )
+
+        atividades = AtividadeService.listar(db, usuario)
+
+        return [
+            atividade
+            for atividade in atividades
+            if atividade.id_caso == id_caso
+        ]
 
     @staticmethod
-    def listar_por_responsavel(db: Session, id_responsavel: int):
+    def listar_por_responsavel(
+        db: Session,
+        id_responsavel: int,
+        usuario: Usuario
+    ):
+        if usuario.perfil == "Gestão":
+            return AtividadeRepository.listar_por_responsavel(
+                db, id_responsavel
+            )
 
-        usuario = db.execute(
-            text("""
-                SELECT id_usuario
-                FROM usuarios
-                WHERE id_usuario = :id_usuario
-            """),
-            {"id_usuario": id_responsavel}
-        ).first()
+        if usuario.perfil == "Aluno":
+            if id_responsavel != usuario.id_usuario:
+                raise PermissionError(
+                    "Você só pode consultar suas próprias atividades."
+                )
 
-        if not usuario:
-            raise LookupError("Usuário responsável não encontrado.")
+        atividades = AtividadeService.listar(db, usuario)
 
-        return AtividadeRepository.listar_por_responsavel(
-            db, id_responsavel
-        )
+        return [
+            atividade
+            for atividade in atividades
+            if atividade.id_responsavel == id_responsavel
+        ]
 
     @staticmethod
-    def criar(db: Session, dados: AtividadeCreate):
+    def criar(
+        db: Session,
+        dados: AtividadeCreate,
+        usuario: Usuario
+    ):
+        if usuario.perfil not in ("Aluno", "Gestão"):
+            raise PermissionError(
+                "Somente alunos e Gestão podem cadastrar atividades."
+            )
 
-        # Verifica se o caso jurídico existe
         caso = db.execute(
             text("""
-                SELECT id_caso
+                SELECT id_caso, id_aluno_responsavel
                 FROM casos_juridicos
                 WHERE id_caso = :id_caso
             """),
@@ -80,33 +201,50 @@ class AtividadeService:
         if not caso:
             raise LookupError("Caso jurídico não encontrado.")
 
-        # Verifica se o usuário responsável existe
-        usuario = db.execute(
+        if usuario.perfil == "Aluno":
+            id_aluno = AtividadeService._buscar_id_aluno(
+                db, usuario.id_usuario
+            )
+
+            if not id_aluno or caso.id_aluno_responsavel != id_aluno:
+                raise PermissionError(
+                    "Você só pode cadastrar atividades nos seus próprios casos."
+                )
+
+            id_responsavel = usuario.id_usuario
+
+        else:
+            id_responsavel = dados.id_responsavel
+
+        responsavel = db.execute(
             text("""
                 SELECT id_usuario
                 FROM usuarios
                 WHERE id_usuario = :id_usuario
+                  AND situacao_conta = 'Ativo'
             """),
-            {"id_usuario": dados.id_responsavel}
+            {"id_usuario": id_responsavel}
         ).first()
 
-        if not usuario:
-            raise LookupError("Usuário responsável não encontrado.")
+        if not responsavel:
+            raise LookupError("Usuário responsável não encontrado ou inativo.")
 
-        dados_atividade = dados.model_dump()
+        dados_atividade = dados.model_copy(
+            update={"id_responsavel": id_responsavel}
+        )
 
-        # Registra a data de conclusão caso já seja criada como concluída
         if dados.situacao == "Concluída":
-            dados_atividade["data_conclusao"] = datetime.now()
+            data_conclusao = datetime.now()
+        else:
+            data_conclusao = None
 
         try:
             atividade = AtividadeRepository.criar(
-                db,
-                dados
+                db, dados_atividade
             )
 
-            if dados.situacao == "Concluída":
-                atividade.data_conclusao = dados_atividade["data_conclusao"]
+            if data_conclusao:
+                atividade.data_conclusao = data_conclusao
 
             db.commit()
             db.refresh(atividade)
@@ -128,11 +266,11 @@ class AtividadeService:
     def atualizar(
         db: Session,
         id_atividade: int,
-        dados: AtividadeUpdate
+        dados: AtividadeUpdate,
+        usuario: Usuario
     ):
-
-        atividade = AtividadeRepository.buscar_por_id(
-            db, id_atividade
+        atividade = AtividadeService._buscar_atividade_permitida(
+            db, id_atividade, usuario
         )
 
         if not atividade:
@@ -143,12 +281,23 @@ class AtividadeService:
             exclude_none=True
         )
 
-        # Valida o caso jurídico caso ele seja alterado
-        if "id_caso" in dados_atualizacao:
+        if usuario.perfil == "Aluno":
+            if "id_responsavel" in dados_atualizacao:
+                raise PermissionError(
+                    "O aluno não pode alterar o responsável pela atividade."
+                )
 
+        if usuario.perfil == "Professor":
+            if "id_responsavel" in dados_atualizacao:
+                raise PermissionError(
+                    "O professor não pode alterar o responsável pela atividade."
+                )
+
+        if "id_caso" in dados_atualizacao:
             caso = db.execute(
                 text("""
-                    SELECT id_caso
+                    SELECT id_caso, id_aluno_responsavel,
+                           id_professor_orientador
                     FROM casos_juridicos
                     WHERE id_caso = :id_caso
                 """),
@@ -158,22 +307,46 @@ class AtividadeService:
             if not caso:
                 raise LookupError("Caso jurídico não encontrado.")
 
-        # Valida o usuário responsável caso ele seja alterado
-        if "id_responsavel" in dados_atualizacao:
+            if usuario.perfil == "Aluno":
+                id_aluno = AtividadeService._buscar_id_aluno(
+                    db, usuario.id_usuario
+                )
 
-            usuario = db.execute(
+                if not id_aluno or caso.id_aluno_responsavel != id_aluno:
+                    raise PermissionError(
+                        "Você não pode transferir a atividade para outro caso."
+                    )
+
+            if usuario.perfil == "Professor":
+                id_professor = AtividadeService._buscar_id_professor(
+                    db, usuario.id_usuario
+                )
+
+                if (
+                    not id_professor
+                    or caso.id_professor_orientador != id_professor
+                ):
+                    raise PermissionError(
+                        "Você não pode transferir a atividade para um caso "
+                        "que não está sob sua orientação."
+                    )
+
+        if "id_responsavel" in dados_atualizacao:
+            responsavel = db.execute(
                 text("""
                     SELECT id_usuario
                     FROM usuarios
                     WHERE id_usuario = :id_usuario
+                      AND situacao_conta = 'Ativo'
                 """),
                 {"id_usuario": dados_atualizacao["id_responsavel"]}
             ).first()
 
-            if not usuario:
-                raise LookupError("Usuário responsável não encontrado.")
+            if not responsavel:
+                raise LookupError(
+                    "Usuário responsável não encontrado ou inativo."
+                )
 
-        # Registra automaticamente a conclusão da atividade
         if dados_atualizacao.get("situacao") == "Concluída":
             if not atividade.data_conclusao:
                 dados_atualizacao["data_conclusao"] = datetime.now()

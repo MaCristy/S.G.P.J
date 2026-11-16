@@ -2,7 +2,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db
+from app.api.deps import get_db, get_current_user
+from app.models.usuario import Usuario
 from app.schemas.prazo import (
     PrazoCreate,
     PrazoUpdate,
@@ -18,16 +19,42 @@ router = APIRouter(
 
 
 @router.get("/", response_model=list[PrazoResponse])
-def listar_prazos(db: Session = Depends(get_db)):
-    return PrazoService.listar(db)
+def listar_prazos(
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user)
+):
+    try:
+        return PrazoService.listar(db, usuario)
+
+    except PermissionError as erro:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(erro)
+        )
 
 
 @router.get("/caso/{id_caso}", response_model=list[PrazoResponse])
 def listar_prazos_por_caso(
     id_caso: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user)
 ):
-    return PrazoService.listar_por_caso(db, id_caso)
+    try:
+        return PrazoService.listar_por_caso(
+            db, id_caso, usuario
+        )
+
+    except LookupError as erro:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(erro)
+        )
+
+    except PermissionError as erro:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(erro)
+        )
 
 
 @router.get(
@@ -36,24 +63,41 @@ def listar_prazos_por_caso(
 )
 def listar_prazos_por_responsavel(
     id_responsavel: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user)
 ):
-    return PrazoService.listar_por_responsavel(
-        db, id_responsavel
-    )
+    try:
+        return PrazoService.listar_por_responsavel(
+            db, id_responsavel, usuario
+        )
+
+    except PermissionError as erro:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(erro)
+        )
 
 
 @router.get("/{id_prazo}", response_model=PrazoResponse)
 def buscar_prazo(
     id_prazo: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user)
 ):
     try:
-        return PrazoService.buscar_por_id(db, id_prazo)
+        return PrazoService.buscar_por_id(
+            db, id_prazo, usuario
+        )
 
     except LookupError as erro:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(erro)
+        )
+
+    except PermissionError as erro:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
             detail=str(erro)
         )
 
@@ -65,14 +109,23 @@ def buscar_prazo(
 )
 def criar_prazo(
     dados: PrazoCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user)
 ):
     try:
-        return PrazoService.criar(db, dados)
+        return PrazoService.criar(
+            db, dados, usuario
+        )
 
     except ValueError as erro:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(erro)
+        )
+
+    except PermissionError as erro:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
             detail=str(erro)
         )
 
@@ -81,11 +134,12 @@ def criar_prazo(
 def atualizar_prazo(
     id_prazo: int,
     dados: PrazoUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user)
 ):
     try:
         return PrazoService.atualizar(
-            db, id_prazo, dados
+            db, id_prazo, dados, usuario
         )
 
     except LookupError as erro:
@@ -97,5 +151,11 @@ def atualizar_prazo(
     except ValueError as erro:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(erro)
+        )
+
+    except PermissionError as erro:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
             detail=str(erro)
         )

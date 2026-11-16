@@ -34,3 +34,13 @@ class UsuarioRepository:
 
         db.add(usuario)
         return usuario
+    
+
+    @staticmethod
+    def atualizar(db: Session, usuario: Usuario, dados: dict):
+        for campo, valor in dados.items():
+            setattr(usuario, campo, valor)
+
+        db.add(usuario)
+        return usuario
+

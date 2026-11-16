@@ -1,9 +1,12 @@
+
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
 from app.repositories.caso_juridico import CasoJuridicoRepository
 from app.repositories.assistido import AssistidoRepository
+from app.repositories.aluno import AlunoRepository
+from app.repositories.professor import ProfessorRepository
 from app.schemas.caso_juridico import CasoJuridicoCreate
 
 
@@ -34,8 +37,32 @@ class CasoJuridicoService:
         )
 
     @staticmethod
+    def listar_por_aluno(db: Session, id_usuario: int):
+        aluno = AlunoRepository.buscar_por_usuario(db, id_usuario)
+
+        if not aluno:
+            raise LookupError("Cadastro de aluno não encontrado.")
+
+        return CasoJuridicoRepository.listar_por_aluno(
+            db, aluno.id_aluno
+        )
+
+    @staticmethod
+    def listar_por_professor(db: Session, id_usuario: int):
+        professor = ProfessorRepository.buscar_por_usuario(
+            db, id_usuario
+        )
+
+        if not professor:
+            raise LookupError("Cadastro de professor não encontrado ou inativo.")
+
+        return CasoJuridicoRepository.listar_por_professor(
+            db, professor.id_professor
+        )
+
+    @staticmethod
     def criar(db: Session, dados: CasoJuridicoCreate):
-        # Verifica se o assistido existe
+        # Verifica se o assistido existe.
         assistido = AssistidoRepository.buscar_por_id(
             db, dados.id_assistido
         )
@@ -43,7 +70,7 @@ class CasoJuridicoService:
         if not assistido:
             raise LookupError("Assistido não encontrado.")
 
-        # Verifica se o código interno já está cadastrado
+        # Verifica se o código interno já está cadastrado.
         codigo_existente = CasoJuridicoRepository.buscar_por_codigo(
             db, dados.codigo_interno
         )
@@ -51,7 +78,7 @@ class CasoJuridicoService:
         if codigo_existente:
             raise ValueError("Já existe um caso com esse código interno.")
 
-        # Verifica se o aluno responsável existe, quando informado
+        # Verifica se o aluno responsável existe, quando informado.
         if dados.id_aluno_responsavel is not None:
             aluno = db.execute(
                 text("""
@@ -65,7 +92,7 @@ class CasoJuridicoService:
             if not aluno:
                 raise LookupError("Aluno responsável não encontrado.")
 
-        # Verifica se o professor orientador existe, quando informado
+        # Verifica se o professor orientador existe, quando informado.
         if dados.id_professor_orientador is not None:
             professor = db.execute(
                 text("""

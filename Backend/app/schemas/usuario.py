@@ -12,6 +12,14 @@ class UsuarioCreate(BaseModel):
     perfil: Literal["Aluno", "Professor", "Gestão"]
 
 
+class UsuarioUpdate(BaseModel):
+    nome: str | None = Field(default=None, min_length=1, max_length=150)
+    email_institucional: EmailStr | None = None
+    senha: str | None = Field(default=None, min_length=8, max_length=128)
+    perfil: Literal["Aluno", "Professor", "Gestão"] | None = None
+    situacao_conta: Literal["Ativo", "Inativo"] | None = None
+
+
 class UsuarioResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

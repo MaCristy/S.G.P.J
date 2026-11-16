@@ -6,7 +6,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class HistoricoCasoCreate(BaseModel):
     id_caso: int
-    id_usuario_responsavel: int
 
     tipo_ocorrencia: str = Field(
         min_length=1,

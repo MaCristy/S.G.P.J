@@ -5,6 +5,10 @@ from sqlalchemy.exc import IntegrityError
 from app.repositories.assistido import AssistidoRepository
 from app.schemas.assistido import AssistidoCreate, AssistidoUpdate
 
+from app.repositories.aluno import AlunoRepository
+from app.repositories.professor import ProfessorRepository
+
+
 
 class AssistidoService:
     """Contém as regras de negócio dos assistidos."""
@@ -12,6 +16,38 @@ class AssistidoService:
     @staticmethod
     def listar(db: Session):
         return AssistidoRepository.listar(db)
+    
+
+    @staticmethod
+    def listar_por_aluno(db: Session, id_usuario: int):
+        aluno = AlunoRepository.buscar_por_usuario(
+            db, id_usuario
+        )
+
+        if not aluno:
+            raise LookupError("Cadastro de aluno não encontrado.")
+
+        return AssistidoRepository.listar_por_aluno(
+            db, aluno.id_aluno
+        )
+
+    @staticmethod
+    def listar_por_professor(db: Session, id_usuario: int):
+        professor = ProfessorRepository.buscar_por_usuario(
+            db, id_usuario
+        )
+
+        if not professor:
+            raise LookupError("Cadastro de professor não encontrado.")
+
+        if professor.situacao != "Ativo":
+            raise PermissionError(
+                "O cadastro do professor não está ativo."
+            )
+
+        return AssistidoRepository.listar_por_professor(
+            db, professor.id_professor
+        )
 
     @staticmethod
     def buscar_por_id(db: Session, id_assistido: int):
@@ -22,6 +58,64 @@ class AssistidoService:
 
         if not assistido:
             raise LookupError("Assistido não encontrado.")
+
+        return assistido
+
+    
+    @staticmethod
+    def buscar_por_id_e_aluno(
+        db: Session,
+        id_assistido: int,
+        id_usuario: int
+    ):
+        aluno = AlunoRepository.buscar_por_usuario(
+            db, id_usuario
+        )
+
+        if not aluno:
+            raise LookupError("Cadastro de aluno não encontrado.")
+
+        assistido = AssistidoRepository.buscar_por_id_e_aluno(
+            db,
+            id_assistido,
+            aluno.id_aluno
+        )
+
+        if not assistido:
+            raise LookupError(
+                "Assistido não encontrado ou não vinculado aos seus casos."
+            )
+
+        return assistido
+
+    @staticmethod
+    def buscar_por_id_e_professor(
+        db: Session,
+        id_assistido: int,
+        id_usuario: int
+    ):
+        professor = ProfessorRepository.buscar_por_usuario(
+            db, id_usuario
+        )
+
+        if not professor:
+            raise LookupError("Cadastro de professor não encontrado.")
+
+        if professor.situacao != "Ativo":
+            raise PermissionError(
+                "O cadastro do professor não está ativo."
+            )
+
+        assistido = AssistidoRepository.buscar_por_id_e_professor(
+            db,
+            id_assistido,
+            professor.id_professor
+        )
+
+        if not assistido:
+            raise LookupError(
+                "Assistido não encontrado ou não vinculado aos seus casos."
+            )
 
         return assistido
 

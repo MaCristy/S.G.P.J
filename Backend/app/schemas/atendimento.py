@@ -7,7 +7,6 @@ from pydantic import BaseModel, ConfigDict, Field
 class AtendimentoBase(BaseModel):
     id_assistido: int = Field(gt=0)
     id_caso: int | None = Field(default=None, gt=0)
-    id_usuario_registro: int = Field(gt=0)
 
     data_hora: datetime
     tipo: str = Field(min_length=1, max_length=80)
@@ -23,4 +22,5 @@ class AtendimentoResponse(AtendimentoBase):
     model_config = ConfigDict(from_attributes=True)
 
     id_atendimento: int
+    id_usuario_registro: int
     data_criacao: datetime
