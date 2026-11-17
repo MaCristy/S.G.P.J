@@ -8,7 +8,7 @@ Dependências compartilhadas da API (FastAPI Dependency Injection).
 """
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError
 from sqlalchemy.orm import Session
 
@@ -17,13 +17,11 @@ from app.models.usuario import Usuario
 from app.core.security import verificar_token
 
 
-oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/api/v1/auth/login"
-)
+security = HTTPBearer()
 
 
 def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)
 ):
     credenciais_invalidas = HTTPException(
@@ -33,6 +31,7 @@ def get_current_user(
     )
 
     try:
+        token = credentials.credentials
         payload = verificar_token(token)
 
         if payload is None:
