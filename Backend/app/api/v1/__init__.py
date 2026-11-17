@@ -10,15 +10,16 @@ from app.api.v1.routers import (
     health,
     assistidos,
     atendimentos,
-    usuarios,
+    usuario as usuarios,
     casos_juridicos,
-    alunos,
-    professores,
-    atividades,
-    documentos,
-    prazos,
+    aluno as alunos,
+    professor as professores,
+    atividade as atividades,
+    documento as documentos,
+    prazo as prazos,
     historico_caso,
     auth,
+    dashboard
 )
 
 
@@ -85,4 +86,8 @@ api_router_v1.include_router(
     auth.router,
 )
 
+# Módulo de Dashboard.
+api_router_v1.include_router(
+    dashboard.router,
+)
 
