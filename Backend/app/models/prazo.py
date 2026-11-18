@@ -44,7 +44,13 @@ class Prazo(Base):
     )
 
     situacao = Column(
-        Enum("Pendente", "Concluído", "Vencido"),
+        Enum(
+            "Pendente de validação",
+            "Pendente",
+            "Concluído",
+            "Vencido",
+            "Rejeitado"
+        ),
         nullable=False,
         default="Pendente"
     )
@@ -62,5 +68,10 @@ class Prazo(Base):
 
     data_conclusao = Column(
         DateTime,
+        nullable=True
+    )
+
+    motivo_rejeicao = Column(
+        Text,
         nullable=True
     )

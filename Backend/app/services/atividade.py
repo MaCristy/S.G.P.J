@@ -191,7 +191,9 @@ class AtividadeService:
 
         caso = db.execute(
             text("""
-                SELECT id_caso, id_aluno_responsavel
+                SELECT id_caso,
+                       id_aluno_responsavel,
+                       situacao
                 FROM casos_juridicos
                 WHERE id_caso = :id_caso
             """),
@@ -200,6 +202,13 @@ class AtividadeService:
 
         if not caso:
             raise LookupError("Caso jurídico não encontrado.")
+
+        # RN13: impedir cadastro de atividades em casos encerrados.
+        if caso.situacao == "Encerrado":
+            raise ValueError(
+                "Não é permitido cadastrar novas atividades "
+                "em casos encerrados."
+            )
 
         if usuario.perfil == "Aluno":
             id_aluno = AtividadeService._buscar_id_aluno(

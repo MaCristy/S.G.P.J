@@ -1,13 +1,13 @@
 
-from sqlalchemy import text
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
 from app.repositories.caso_juridico import CasoJuridicoRepository
 from app.repositories.assistido import AssistidoRepository
 from app.repositories.aluno import AlunoRepository
-from app.repositories.professor import ProfessorRepository
 from app.schemas.caso_juridico import CasoJuridicoCreate
+from app.models.historico_caso import HistoricoCaso
+from app.repositories.professor import ProfessorRepository
 
 
 class CasoJuridicoService:
@@ -61,8 +61,12 @@ class CasoJuridicoService:
         )
 
     @staticmethod
-    def criar(db: Session, dados: CasoJuridicoCreate):
-        # Verifica se o assistido existe.
+    def criar(
+        db: Session,
+        dados: CasoJuridicoCreate,
+        usuario
+    ):
+        # O caso sempre deve estar vinculado a um assistido existente e ativo.
         assistido = AssistidoRepository.buscar_por_id(
             db, dados.id_assistido
         )
@@ -70,7 +74,11 @@ class CasoJuridicoService:
         if not assistido:
             raise LookupError("Assistido não encontrado.")
 
-        # Verifica se o código interno já está cadastrado.
+        if assistido.situacao != "Ativo":
+            raise ValueError(
+                "Não é possível cadastrar um caso para um assistido inativo."
+            )
+
         codigo_existente = CasoJuridicoRepository.buscar_por_codigo(
             db, dados.codigo_interno
         )
@@ -78,40 +86,68 @@ class CasoJuridicoService:
         if codigo_existente:
             raise ValueError("Já existe um caso com esse código interno.")
 
-        # Verifica se o aluno responsável existe, quando informado.
-        if dados.id_aluno_responsavel is not None:
-            aluno = db.execute(
-                text("""
-                    SELECT id_aluno
-                    FROM alunos
-                    WHERE id_aluno = :id_aluno
-                """),
-                {"id_aluno": dados.id_aluno_responsavel}
-            ).first()
+        dados_caso = dados.model_dump()
+
+        if usuario.perfil == "Aluno":
+            aluno = AlunoRepository.buscar_por_usuario(
+                db, usuario.id_usuario
+            )
 
             if not aluno:
-                raise LookupError("Aluno responsável não encontrado.")
+                raise LookupError("Cadastro de aluno não encontrado.")
 
-        # Verifica se o professor orientador existe, quando informado.
-        if dados.id_professor_orientador is not None:
-            professor = db.execute(
-                text("""
-                    SELECT id_professor
-                    FROM professores
-                    WHERE id_professor = :id_professor
-                """),
-                {"id_professor": dados.id_professor_orientador}
-            ).first()
+            assistido_autorizado = AssistidoRepository.buscar_por_id_e_aluno(
+                db,
+                dados.id_assistido,
+                aluno.id_aluno
+            )
 
-            if not professor:
-                raise LookupError("Professor orientador não encontrado.")
+            if not assistido_autorizado:
+                raise PermissionError(
+                    "Você só pode cadastrar casos para assistidos "
+                    "vinculados aos seus casos."
+                )
+
+            # O servidor determina o responsável e o estado inicial.
+            dados_caso["id_aluno_responsavel"] = aluno.id_aluno
+            dados_caso["id_professor_orientador"] = None
+            dados_caso["situacao"] = "Em triagem"
+            dados_caso["data_encerramento"] = None
+
+        elif usuario.perfil != "Gestão":
+            raise PermissionError(
+                "Somente Aluno ou Gestão podem cadastrar casos jurídicos."
+            )
 
         try:
-            caso = CasoJuridicoRepository.criar(db, dados)
+            caso = CasoJuridicoRepository.criar(
+                db,
+                CasoJuridicoCreate(**dados_caso)
+            )
+
+            db.flush()
+            db.refresh(caso)
+
+            db.add(
+                HistoricoCaso(
+                    id_caso=caso.id_caso,
+                    id_usuario_responsavel=usuario.id_usuario,
+                    tipo_ocorrencia=(
+                        "Cadastro de caso em triagem"
+                        if usuario.perfil == "Aluno"
+                        else "Cadastro de caso"
+                    ),
+                    descricao=(
+                        "Caso cadastrado pelo aluno e encaminhado para validação."
+                        if usuario.perfil == "Aluno"
+                        else "Caso cadastrado pela Gestão."
+                    ),
+                    referencia_registro_afetado=f"caso:{caso.id_caso}"
+                )
+            )
 
             db.commit()
             db.refresh(caso)
-
             return caso
 
         except IntegrityError:

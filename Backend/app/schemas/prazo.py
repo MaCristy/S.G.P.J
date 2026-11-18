@@ -5,18 +5,27 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
+SituacaoPrazo = Literal[
+    "Pendente de validação",
+    "Pendente",
+    "Concluído",
+    "Vencido",
+    "Rejeitado"
+]
+
+
 class PrazoCreate(BaseModel):
     id_caso: int
     id_atividade: int | None = None
 
-    descricao: str = Field(min_length=1, max_length=255)
+    descricao: str = Field(
+        min_length=1,
+        max_length=255
+    )
+
     data_limite: date
 
-    situacao: Literal[
-        "Pendente",
-        "Concluído",
-        "Vencido"
-    ] = "Pendente"
+    situacao: SituacaoPrazo = "Pendente"
 
     id_responsavel: int
     observacoes: str | None = None
@@ -34,14 +43,11 @@ class PrazoUpdate(BaseModel):
 
     data_limite: date | None = None
 
-    situacao: Literal[
-        "Pendente",
-        "Concluído",
-        "Vencido"
-    ] | None = None
+    situacao: SituacaoPrazo | None = None
 
     id_responsavel: int | None = None
     observacoes: str | None = None
+    motivo_rejeicao: str | None = None
 
 
 class PrazoResponse(BaseModel):
@@ -56,3 +62,4 @@ class PrazoResponse(BaseModel):
     id_responsavel: int
     observacoes: str | None
     data_conclusao: datetime | None
+    motivo_rejeicao: str | None

@@ -35,6 +35,30 @@ class AtendimentoRepository:
             .all()
         )
 
+    @staticmethod
+    def listar_por_assistido_e_aluno(
+        db: Session,
+        id_assistido: int,
+        id_aluno: int,
+        id_usuario: int
+    ):
+        return (
+            db.query(Atendimento)
+            .outerjoin(
+                CasoJuridico,
+                Atendimento.id_caso == CasoJuridico.id_caso
+            )
+            .filter(
+                Atendimento.id_assistido == id_assistido,
+                or_(
+                    CasoJuridico.id_aluno_responsavel == id_aluno,
+                    Atendimento.id_usuario_registro == id_usuario
+                )
+            )
+            .order_by(Atendimento.data_hora.desc())
+            .all()
+        )
+
 
 
     @staticmethod
