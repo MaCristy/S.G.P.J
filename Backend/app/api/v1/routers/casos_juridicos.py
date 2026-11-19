@@ -1,3 +1,6 @@
+
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -18,7 +21,6 @@ router = APIRouter(
     prefix="/casos-juridicos",
     tags=["Casos Jurídicos"]
 )
-
 
 
 @router.get(
@@ -55,8 +57,6 @@ def listar_casos(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(erro)
         )
-
-
 
 
 @router.get(
@@ -100,8 +100,6 @@ def listar_casos_por_assistido(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(erro)
         )
-
-
 
 
 @router.get(
@@ -150,7 +148,6 @@ def buscar_caso(
         )
 
 
-
 @router.post(
     "/",
     response_model=CasoJuridicoResponse,
@@ -191,8 +188,6 @@ def criar_caso(
         )
 
 
-
-
 @router.patch(
     "/{id_caso}",
     response_model=CasoJuridicoResponse
@@ -206,7 +201,9 @@ def atualizar_caso(
     try:
         caso = CasoJuridicoService.buscar_por_id(db, id_caso)
 
-        dados_atualizados = dados.model_dump(exclude_unset=True)
+        dados_atualizados = dados.model_dump(
+            exclude_unset=True
+        )
 
         if usuario_atual.perfil == "Professor":
             professor = ProfessorRepository.buscar_por_usuario(
@@ -255,6 +252,22 @@ def atualizar_caso(
                 detail="Nenhum dado foi enviado para atualização."
             )
 
+        # Impede que a data de encerramento seja informada manualmente.
+        if "data_encerramento" in dados_atualizados:
+            raise ValueError(
+                "A data de encerramento é preenchida automaticamente pelo sistema."
+            )
+
+        # Impede o envio de situação nula.
+        if (
+            "situacao" in dados_atualizados
+            and dados_atualizados["situacao"] is None
+        ):
+            raise ValueError(
+                "A situação do caso não pode ser nula."
+            )
+
+        # Verifica se o código interno já pertence a outro caso.
         if "codigo_interno" in dados_atualizados:
             codigo = dados_atualizados["codigo_interno"]
 
@@ -267,6 +280,7 @@ def atualizar_caso(
                     "Já existe outro caso com esse código interno."
                 )
 
+        # Verifica se o assistido existe.
         if "id_assistido" in dados_atualizados:
             from app.repositories.assistido import AssistidoRepository
 
@@ -277,6 +291,7 @@ def atualizar_caso(
             if not assistido:
                 raise LookupError("Assistido não encontrado.")
 
+        # Verifica se o aluno responsável existe.
         if "id_aluno_responsavel" in dados_atualizados:
             id_aluno = dados_atualizados["id_aluno_responsavel"]
 
@@ -295,6 +310,7 @@ def atualizar_caso(
                 if not aluno:
                     raise LookupError("Aluno responsável não encontrado.")
 
+        # Verifica se o professor orientador existe.
         if "id_professor_orientador" in dados_atualizados:
             id_professor = dados_atualizados["id_professor_orientador"]
 
@@ -315,29 +331,74 @@ def atualizar_caso(
 
         situacao_anterior = caso.situacao
 
+        # Controla automaticamente a data de encerramento.
+        if "situacao" in dados_atualizados:
+            nova_situacao = dados_atualizados["situacao"]
+
+            if (
+                nova_situacao == "Encerrado"
+                and situacao_anterior != "Encerrado"
+            ):
+                dados_atualizados["data_encerramento"] = date.today()
+
+            elif (
+                situacao_anterior == "Encerrado"
+                and nova_situacao != "Encerrado"
+            ):
+                dados_atualizados["data_encerramento"] = None
+
+        # Guarda os valores anteriores dos campos que serão alterados.
+        dados_anteriores = {
+            campo: getattr(caso, campo)
+            for campo in dados_atualizados
+        }
+
+        # Realiza a atualização do caso.
         CasoJuridicoRepository.atualizar(
             db, caso, dados_atualizados
         )
 
-        if (
-            "situacao" in dados_atualizados
-            and dados_atualizados["situacao"] != situacao_anterior
-        ):
+        # Identifica somente as alterações efetivamente realizadas.
+        alteracoes = []
+
+        for campo, valor_anterior in dados_anteriores.items():
+            valor_novo = getattr(caso, campo)
+
+            if valor_anterior != valor_novo:
+                alteracoes.append(
+                    f"{campo}: '{valor_anterior}' para '{valor_novo}'"
+                )
+
+        # Registra as alterações no histórico do caso.
+        if alteracoes:
+            mudou_situacao = (
+                "situacao" in dados_anteriores
+                and dados_anteriores["situacao"] != caso.situacao
+            )
+
+            if (
+                mudou_situacao
+                and situacao_anterior == "Em triagem"
+                and caso.situacao == "Aberto"
+            ):
+                tipo_ocorrencia = "Validação de caso"
+
+            elif mudou_situacao:
+                tipo_ocorrencia = "Alteração de situação do caso"
+
+            else:
+                tipo_ocorrencia = "Atualização de dados do caso"
+
             descricao = (
-                f"Situação do caso alterada de '{situacao_anterior}' "
-                f"para '{dados_atualizados['situacao']}'."
+                f"O caso jurídico foi atualizado. "
+                f"Alterações: {'; '.join(alteracoes)}"
             )
 
             db.add(
                 HistoricoCaso(
                     id_caso=caso.id_caso,
                     id_usuario_responsavel=usuario_atual.id_usuario,
-                    tipo_ocorrencia=(
-                        "Validação de caso"
-                        if situacao_anterior == "Em triagem"
-                        and dados_atualizados["situacao"] == "Aberto"
-                        else "Alteração de situação do caso"
-                    ),
+                    tipo_ocorrencia=tipo_ocorrencia,
                     descricao=descricao,
                     referencia_registro_afetado=f"caso:{caso.id_caso}"
                 )

@@ -8,9 +8,29 @@ from sqlalchemy import text
 from app.repositories.atividade import AtividadeRepository
 from app.schemas.atividade import AtividadeCreate, AtividadeUpdate
 from app.models.usuario import Usuario
+from app.models.historico_caso import HistoricoCaso
 
 
 class AtividadeService:
+
+    @staticmethod
+    def _registrar_historico(
+        db: Session,
+        id_caso: int,
+        usuario: Usuario,
+        tipo_ocorrencia: str,
+        descricao: str,
+        id_atividade: int
+    ):
+        historico = HistoricoCaso(
+            id_caso=id_caso,
+            id_usuario_responsavel=usuario.id_usuario,
+            tipo_ocorrencia=tipo_ocorrencia,
+            descricao=descricao,
+            referencia_registro_afetado=f"Atividade #{id_atividade}"
+        )
+
+        db.add(historico)
 
     @staticmethod
     def _buscar_id_aluno(db: Session, id_usuario: int):
@@ -74,7 +94,9 @@ class AtividadeService:
                 db, id_atividade, id_professor
             )
 
-        raise PermissionError("Perfil sem permissão para acessar atividades.")
+        raise PermissionError(
+            "Perfil sem permissão para acessar atividades."
+        )
 
     @staticmethod
     def listar(db: Session, usuario: Usuario):
@@ -105,7 +127,9 @@ class AtividadeService:
                 db, id_professor
             )
 
-        raise PermissionError("Perfil sem permissão para consultar atividades.")
+        raise PermissionError(
+            "Perfil sem permissão para consultar atividades."
+        )
 
     @staticmethod
     def buscar_por_id(
@@ -184,15 +208,17 @@ class AtividadeService:
         dados: AtividadeCreate,
         usuario: Usuario
     ):
-        if usuario.perfil not in ("Aluno", "Gestão"):
+        if usuario.perfil not in ("Aluno", "Professor", "Gestão"):
             raise PermissionError(
-                "Somente alunos e Gestão podem cadastrar atividades."
+                "Somente Alunos, Professores e Gestão "
+                "podem cadastrar atividades."
             )
 
         caso = db.execute(
             text("""
                 SELECT id_caso,
                        id_aluno_responsavel,
+                       id_professor_orientador,
                        situacao
                 FROM casos_juridicos
                 WHERE id_caso = :id_caso
@@ -220,26 +246,60 @@ class AtividadeService:
                     "Você só pode cadastrar atividades nos seus próprios casos."
                 )
 
-            id_responsavel = usuario.id_usuario
+        elif usuario.perfil == "Professor":
+            id_professor = AtividadeService._buscar_id_professor(
+                db, usuario.id_usuario
+            )
 
-        else:
-            id_responsavel = dados.id_responsavel
+            if (
+                not id_professor
+                or caso.id_professor_orientador != id_professor
+            ):
+                raise PermissionError(
+                    "Você só pode cadastrar atividades em casos "
+                    "sob sua orientação."
+                )
+
+        # RN14: a atividade deve pertencer ao aluno responsável pelo caso.
+        if not caso.id_aluno_responsavel:
+            raise ValueError(
+                "O caso precisa ter um aluno responsável antes "
+                "do cadastro de atividades."
+            )
 
         responsavel = db.execute(
             text("""
-                SELECT id_usuario
-                FROM usuarios
-                WHERE id_usuario = :id_usuario
-                  AND situacao_conta = 'Ativo'
+                SELECT u.id_usuario
+                FROM alunos a
+                JOIN usuarios u ON u.id_usuario = a.id_usuario
+                WHERE a.id_aluno = :id_aluno
+                  AND u.situacao_conta = 'Ativo'
             """),
-            {"id_usuario": id_responsavel}
+            {"id_aluno": caso.id_aluno_responsavel}
         ).first()
 
         if not responsavel:
-            raise LookupError("Usuário responsável não encontrado ou inativo.")
+            raise LookupError(
+                "O aluno responsável pelo caso não foi encontrado "
+                "ou está inativo."
+            )
+
+        id_responsavel_esperado = responsavel.id_usuario
+
+        # RN14: rejeitar responsável diferente do aluno vinculado ao caso.
+        if (
+            dados.id_responsavel is not None
+            and dados.id_responsavel != id_responsavel_esperado
+        ):
+            raise ValueError(
+                "A atividade deve ser atribuída ao aluno "
+                "responsável pelo caso."
+            )
 
         dados_atividade = dados.model_copy(
-            update={"id_responsavel": id_responsavel}
+            update={
+                "id_responsavel": id_responsavel_esperado
+            }
         )
 
         if dados.situacao == "Concluída":
@@ -254,6 +314,18 @@ class AtividadeService:
 
             if data_conclusao:
                 atividade.data_conclusao = data_conclusao
+
+            db.flush()
+
+            AtividadeService._registrar_historico(
+                db,
+                atividade.id_caso,
+                usuario,
+                "Cadastro de atividade",
+                f"{usuario.perfil} cadastrou a atividade "
+                f"'{atividade.titulo}'.",
+                atividade.id_atividade
+            )
 
             db.commit()
             db.refresh(atividade)
@@ -289,6 +361,11 @@ class AtividadeService:
             exclude_unset=True,
             exclude_none=True
         )
+
+        dados_anteriores = {
+            campo: getattr(atividade, campo)
+            for campo in dados_atualizacao
+        }
 
         if usuario.perfil == "Aluno":
             if "id_responsavel" in dados_atualizacao:
@@ -340,25 +417,68 @@ class AtividadeService:
                         "que não está sob sua orientação."
                     )
 
-        if "id_responsavel" in dados_atualizacao:
-            responsavel = db.execute(
-                text("""
-                    SELECT id_usuario
-                    FROM usuarios
-                    WHERE id_usuario = :id_usuario
-                      AND situacao_conta = 'Ativo'
-                """),
-                {"id_usuario": dados_atualizacao["id_responsavel"]}
-            ).first()
+        # RN14: a atividade deve permanecer atribuída
+        # ao aluno responsável pelo caso.
+        id_caso_destino = dados_atualizacao.get(
+            "id_caso", atividade.id_caso
+        )
 
-            if not responsavel:
-                raise LookupError(
-                    "Usuário responsável não encontrado ou inativo."
+        caso_destino = db.execute(
+            text("""
+                SELECT id_aluno_responsavel
+                FROM casos_juridicos
+                WHERE id_caso = :id_caso
+            """),
+            {"id_caso": id_caso_destino}
+        ).first()
+
+        if not caso_destino:
+            raise LookupError("Caso jurídico não encontrado.")
+
+        if not caso_destino.id_aluno_responsavel:
+            raise ValueError(
+                "O caso precisa ter um aluno responsável."
+            )
+
+        responsavel = db.execute(
+            text("""
+                SELECT u.id_usuario
+                FROM alunos a
+                JOIN usuarios u ON u.id_usuario = a.id_usuario
+                WHERE a.id_aluno = :id_aluno
+                  AND u.situacao_conta = 'Ativo'
+            """),
+            {"id_aluno": caso_destino.id_aluno_responsavel}
+        ).first()
+
+        if not responsavel:
+            raise LookupError(
+                "O aluno responsável pelo caso não foi encontrado "
+                "ou está inativo."
+            )
+
+        id_responsavel_esperado = responsavel.id_usuario
+
+        if "id_responsavel" in dados_atualizacao:
+            if (
+                dados_atualizacao["id_responsavel"]
+                != id_responsavel_esperado
+            ):
+                raise ValueError(
+                    "A atividade deve ser atribuída ao aluno "
+                    "responsável pelo caso."
                 )
+
+        dados_atualizacao["id_responsavel"] = id_responsavel_esperado
 
         if dados_atualizacao.get("situacao") == "Concluída":
             if not atividade.data_conclusao:
                 dados_atualizacao["data_conclusao"] = datetime.now()
+
+            # Registrar também a data de conclusão automática
+            # na comparação utilizada para gerar o históri    co.
+            dados_anteriores["data_conclusao"] = atividade.data_conclusao
+
 
         try:
             atividade = AtividadeRepository.atualizar(
@@ -366,6 +486,31 @@ class AtividadeService:
                 atividade,
                 dados_atualizacao
             )
+
+            alteracoes = []
+
+            for campo, valor_anterior in dados_anteriores.items():
+                valor_novo = getattr(atividade, campo)
+
+                if valor_anterior != valor_novo:
+                    alteracoes.append(
+                        f"{campo}: '{valor_anterior}' para '{valor_novo}'"
+                    )
+
+            if alteracoes:
+                descricao_historico = (
+                    f"A atividade '{atividade.titulo}' foi atualizada. "
+                    f"Alterações: {'; '.join(alteracoes)}"
+                )
+
+                AtividadeService._registrar_historico(
+                    db,
+                    atividade.id_caso,
+                    usuario,
+                    "Atualização de atividade",
+                    descricao_historico,
+                    atividade.id_atividade
+                )
 
             db.commit()
             db.refresh(atividade)
