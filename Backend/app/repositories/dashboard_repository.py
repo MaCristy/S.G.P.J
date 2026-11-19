@@ -73,11 +73,16 @@ class DashboardRepository:
     def obter_total_atividades_pendentes(db: Session) -> int:
         return DashboardRepository._contar(
             db.query(func.count(Atividade.id_atividade))
+            .join(
+                CasoJuridico,
+                CasoJuridico.id_caso == Atividade.id_caso
+            )
             .filter(
                 Atividade.situacao.in_([
                     "Pendente",
                     "Em andamento"
-                ])
+                ]),
+                CasoJuridico.situacao != "Encerrado"
             )
         )
 
@@ -88,10 +93,15 @@ class DashboardRepository:
 
         return DashboardRepository._contar(
             db.query(func.count(Prazo.id_prazo))
+            .join(
+                CasoJuridico,
+                CasoJuridico.id_caso == Prazo.id_caso
+            )
             .filter(
                 Prazo.data_limite >= hoje,
                 Prazo.data_limite <= limite,
-                Prazo.situacao != "Concluído"
+                Prazo.situacao == "Pendente",
+                CasoJuridico.situacao != "Encerrado"
             )
         )
 
@@ -101,9 +111,14 @@ class DashboardRepository:
 
         return DashboardRepository._contar(
             db.query(func.count(Prazo.id_prazo))
+            .join(
+                CasoJuridico,
+                CasoJuridico.id_caso == Prazo.id_caso
+            )
             .filter(
                 Prazo.data_limite < hoje,
-                Prazo.situacao != "Concluído"
+                Prazo.situacao.in_(["Pendente", "Vencido"]),
+                CasoJuridico.situacao != "Encerrado"
             )
         )
 
@@ -126,7 +141,6 @@ class DashboardRepository:
             }
             for situacao, quantidade in resultados
         ]
-
 
     @staticmethod
     def obter_casos_por_aluno(db: Session) -> list[dict]:
@@ -161,7 +175,6 @@ class DashboardRepository:
             for id_aluno, nome, quantidade in resultados
         ]
 
-
     @staticmethod
     def obter_casos_por_professor(db: Session) -> list[dict]:
         resultados = (
@@ -191,7 +204,6 @@ class DashboardRepository:
             }
             for id_professor, nome, quantidade in resultados
         ]
-
 
     @staticmethod
     def obter_atendimentos_por_aluno(
@@ -238,16 +250,20 @@ class DashboardRepository:
             for id_aluno, nome, quantidade in resultados
         ]
 
-
     @staticmethod
     def obter_prazos_vencidos(db: Session) -> list[dict]:
         hoje = date.today()
 
         resultados = (
             db.query(Prazo)
+            .join(
+                CasoJuridico,
+                CasoJuridico.id_caso == Prazo.id_caso
+            )
             .filter(
                 Prazo.data_limite < hoje,
-                Prazo.situacao != "Concluído"
+                Prazo.situacao.in_(["Pendente", "Vencido"]),
+                CasoJuridico.situacao != "Encerrado"
             )
             .order_by(Prazo.data_limite.asc())
             .limit(10)
@@ -273,10 +289,15 @@ class DashboardRepository:
 
         resultados = (
             db.query(Prazo)
+            .join(
+                CasoJuridico,
+                CasoJuridico.id_caso == Prazo.id_caso
+            )
             .filter(
                 Prazo.data_limite >= hoje,
                 Prazo.data_limite <= limite,
-                Prazo.situacao != "Concluído"
+                Prazo.situacao == "Pendente",
+                CasoJuridico.situacao != "Encerrado"
             )
             .order_by(Prazo.data_limite.asc())
             .limit(10)
@@ -299,11 +320,16 @@ class DashboardRepository:
     def obter_atividades_pendentes(db: Session) -> list[dict]:
         resultados = (
             db.query(Atividade)
+            .join(
+                CasoJuridico,
+                CasoJuridico.id_caso == Atividade.id_caso
+            )
             .filter(
                 Atividade.situacao.in_([
                     "Pendente",
                     "Em andamento"
-                ])
+                ]),
+                CasoJuridico.situacao != "Encerrado"
             )
             .order_by(
                 Atividade.data_prevista.asc()
