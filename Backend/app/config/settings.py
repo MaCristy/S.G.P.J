@@ -1,6 +1,6 @@
 from pathlib import Path
 from typing import List
-from pydantic import computed_field, field_validator, ValidationInfo
+from pydantic import computed_field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import URL as SQLAlchemyURL
 

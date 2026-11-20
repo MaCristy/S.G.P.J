@@ -1,3 +1,4 @@
+
 """
 Router: Health Check — verificação de funcionamento do S.G.P.J. Backend.
 
@@ -14,6 +15,7 @@ Restrições:
     - Não lê, cria, altera ou apaga dados no banco.
     - Não modifica estrutura (tabelas, índices, triggers).
 """
+
 from datetime import datetime, timezone
 
 from fastapi import APIRouter
@@ -21,9 +23,12 @@ from fastapi import APIRouter
 from app.config.settings import settings
 from app.db.session import check_db_connectivity
 
+
+# Configuração da rota de verificação do sistema.
 router = APIRouter()
 
 
+# Verifica a disponibilidade da API e a conectividade com o banco.
 @router.get(
     "/health",
     summary="Verificação de Saúde da API",
@@ -45,10 +50,14 @@ def health_check() -> dict:
         - **timestamp**: Data e hora UTC da verificação.
         - **database**: Resultado da verificação de conectividade com o MySQL.
     """
+
+    # Verifica a conectividade com o banco de dados.
     db_status = check_db_connectivity()
 
+    # Define o estado geral conforme o resultado da conexão com o banco.
     overall_status = "ok" if db_status["status"] == "ok" else "degraded"
 
+    # Retorna as informações de funcionamento da aplicação.
     return {
         "status": overall_status,
         "app": settings.APP_NAME,
@@ -56,4 +65,3 @@ def health_check() -> dict:
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "database": db_status,
     }
-

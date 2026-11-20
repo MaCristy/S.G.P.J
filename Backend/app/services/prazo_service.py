@@ -14,6 +14,7 @@ from app.repositories.prazo_repository import PrazoRepository
 
 class PrazoService:
 
+    # Busca o cadastro acadêmico do aluno associado ao usuário.
     @staticmethod
     def _buscar_id_aluno(db: Session, id_usuario: int):
         resultado = db.execute(
@@ -27,6 +28,7 @@ class PrazoService:
 
         return resultado.id_aluno if resultado else None
 
+    # Busca o cadastro ativo do professor associado ao usuário.
     @staticmethod
     def _buscar_id_professor(db: Session, id_usuario: int):
         resultado = db.execute(
@@ -41,6 +43,7 @@ class PrazoService:
 
         return resultado.id_professor if resultado else None
 
+    # Busca os dados do caso necessários para validar os vínculos e permissões.
     @staticmethod
     def _buscar_caso(db: Session, id_caso: int):
         return db.execute(
@@ -55,6 +58,7 @@ class PrazoService:
             {"id_caso": id_caso}
         ).first()
 
+    # Registra no histórico do caso uma ocorrência relacionada ao prazo.
     @staticmethod
     def _registrar_historico(
         db: Session,
@@ -74,6 +78,7 @@ class PrazoService:
 
         db.add(historico)
 
+    # Busca um prazo respeitando as permissões de cada perfil.
     @staticmethod
     def _buscar_prazo_permitido(
         db: Session,
@@ -113,6 +118,7 @@ class PrazoService:
             "Perfil sem permissão para acessar prazos."
         )
 
+    # Lista os prazos que o usuário autenticado tem permissão para consultar.
     @staticmethod
     def listar(db: Session, usuario: Usuario):
         if usuario.perfil == "Gestão":
@@ -146,6 +152,7 @@ class PrazoService:
             "Perfil sem permissão para consultar prazos."
         )
 
+    # Busca um prazo específico verificando se o usuário pode acessá-lo.
     @staticmethod
     def buscar_por_id(
         db: Session,
@@ -161,6 +168,7 @@ class PrazoService:
 
         return prazo
 
+    # Lista os prazos associados a um caso jurídico.
     @staticmethod
     def listar_por_caso(
         db: Session,
@@ -183,6 +191,7 @@ class PrazoService:
             if prazo.id_caso == id_caso
         ]
 
+    # Lista os prazos de um responsável respeitando as permissões do perfil.
     @staticmethod
     def listar_por_responsavel(
         db: Session,
@@ -194,6 +203,7 @@ class PrazoService:
                 db, id_responsavel
             )
 
+        # O aluno só pode consultar os próprios prazos.
         if usuario.perfil == "Aluno":
             if id_responsavel != usuario.id_usuario:
                 raise PermissionError(
@@ -212,6 +222,7 @@ class PrazoService:
             if prazo.id_responsavel == id_responsavel
         ]
 
+    # Valida a existência do caso, do responsável e da atividade vinculada.
     @staticmethod
     def _validar_relacionamentos(
         db: Session,
@@ -228,6 +239,7 @@ class PrazoService:
                 "O caso jurídico informado não existe."
             )
 
+        # Verifica se o usuário responsável existe e está ativo.
         usuario_existe = db.execute(
             text("""
                 SELECT id_usuario
@@ -243,6 +255,7 @@ class PrazoService:
                 "O usuário responsável não existe ou está inativo."
             )
 
+        # Quando informada, a atividade deve pertencer ao caso selecionado.
         if id_atividade is not None:
             atividade_existe = db.execute(
                 text("""
@@ -263,6 +276,7 @@ class PrazoService:
                     "não pertence ao caso selecionado."
                 )
 
+    # Cadastra um prazo aplicando as regras de cada perfil.
     @staticmethod
     def criar(
         db: Session,
@@ -280,6 +294,7 @@ class PrazoService:
                     "Cadastro de aluno não encontrado."
                 )
 
+            # Verifica se o caso existe e pertence ao aluno autenticado.
             caso = PrazoService._buscar_caso(
                 db, dados.id_caso
             )
@@ -295,8 +310,7 @@ class PrazoService:
                     "sob sua responsabilidade."
                 )
 
-            # O sistema define automaticamente os dados
-            # do prazo cadastrado pelo aluno.
+            # O sistema define automaticamente os dados do prazo cadastrado pelo aluno.
             dados_prazo = dados.model_dump()
 
             dados_prazo["id_responsavel"] = usuario.id_usuario
@@ -314,6 +328,7 @@ class PrazoService:
 
             dados_prazo = dados.model_dump()
 
+            # Exige justificativa quando a Gestão cadastra um prazo rejeitado.
             if dados_prazo["situacao"] == "Rejeitado":
                 if not dados_prazo.get("motivo_rejeicao"):
                     raise ValueError(
@@ -333,6 +348,7 @@ class PrazoService:
                 "Somente Aluno ou Gestão pode cadastrar prazos."
             )
 
+        # Confere se os relacionamentos informados são válidos.
         PrazoService._validar_relacionamentos(
             db,
             dados_prazo["id_caso"],
@@ -340,6 +356,7 @@ class PrazoService:
             dados_prazo["id_responsavel"]
         )
 
+        # Registra a data de conclusão quando o prazo já é cadastrado como concluído.
         if dados_prazo["situacao"] == "Concluído":
             dados_prazo["data_conclusao"] = datetime.now()
 
@@ -349,6 +366,7 @@ class PrazoService:
             db.add(prazo)
             db.flush()
 
+            # Registra o cadastro do prazo no histórico do caso.
             PrazoService._registrar_historico(
                 db,
                 prazo.id_caso,
@@ -363,6 +381,7 @@ class PrazoService:
 
             return prazo
 
+        # Trata erros de integridade durante o cadastro.
         except IntegrityError:
             db.rollback()
             raise ValueError(
@@ -370,10 +389,12 @@ class PrazoService:
                 "Verifique os dados informados."
             )
 
+        # Desfaz a transação caso ocorra qualquer outro erro.
         except Exception:
             db.rollback()
             raise
 
+    # Atualiza um prazo e controla as decisões de aprovação ou rejeição.
     @staticmethod
     def atualizar(
         db: Session,
@@ -381,6 +402,7 @@ class PrazoService:
         dados,
         usuario: Usuario
     ):
+        # O aluno não pode validar nem atualizar prazos.
         if usuario.perfil == "Aluno":
             raise PermissionError(
                 "O Aluno não possui permissão para validar "
@@ -400,8 +422,7 @@ class PrazoService:
             exclude_unset=True
         )
 
-        # Professor só pode aprovar ou rejeitar prazos
-        # dos casos sob sua orientação.
+        # Professor só pode aprovar ou rejeitar prazos dos casos sob sua orientação.
         if usuario.perfil == "Professor":
 
             campos_permitidos = {
@@ -414,6 +435,7 @@ class PrazoService:
                     "Informe a decisão sobre o prazo."
                 )
 
+            # Impede que o professor altere campos além da decisão e justificativa.
             if not set(dados_atualizacao).issubset(
                 campos_permitidos
             ):
@@ -428,6 +450,7 @@ class PrazoService:
                     "podem ser analisados."
                 )
 
+            # As únicas decisões permitidas ao professor são aprovar ou rejeitar.
             if dados_atualizacao.get("situacao") not in [
                 "Pendente",
                 "Rejeitado"
@@ -445,7 +468,7 @@ class PrazoService:
         tipo_ocorrencia = None
         descricao_historico = None
 
-        # Aprovação do prazo.
+        # Registra a aprovação do prazo.
         if (
             prazo.situacao == "Pendente de validação"
             and nova_situacao == "Pendente"
@@ -458,7 +481,7 @@ class PrazoService:
                 f"por {usuario.perfil}."
             )
 
-        # Rejeição do prazo.
+        # Registra a rejeição e exige uma justificativa.
         elif nova_situacao == "Rejeitado":
 
             if prazo.situacao != "Pendente de validação":
@@ -485,6 +508,7 @@ class PrazoService:
                 f"Motivo: {motivo.strip()}"
             )
 
+        # Impede informar justificativa de rejeição em outros estados.
         elif (
             "motivo_rejeicao" in dados_atualizacao
             and nova_situacao != "Rejeitado"
@@ -494,7 +518,7 @@ class PrazoService:
                 "para prazos rejeitados."
             )
 
-        # Professor não pode alterar outros estados.
+        # Garante que toda atualização feita pelo professor seja uma decisão válida.
         if usuario.perfil == "Professor":
             if tipo_ocorrencia is None:
                 raise ValueError(
@@ -516,6 +540,7 @@ class PrazoService:
             prazo.id_responsavel
         )
 
+        # Valida os relacionamentos considerando os dados atuais e os novos valores.
         PrazoService._validar_relacionamentos(
             db,
             id_caso,
@@ -523,10 +548,12 @@ class PrazoService:
             id_responsavel
         )
 
+        # Define a data de conclusão ao concluir o prazo.
         if nova_situacao == "Concluído":
             if prazo.situacao != "Concluído":
                 dados_atualizacao["data_conclusao"] = datetime.now()
 
+        # Limpa a data de conclusão quando o prazo deixa de estar concluído.
         elif "situacao" in dados_atualizacao:
             dados_atualizacao["data_conclusao"] = None
 
@@ -534,6 +561,7 @@ class PrazoService:
             for campo, valor in dados_atualizacao.items():
                 setattr(prazo, campo, valor)
 
+            # Registra no histórico as decisões de aprovação ou rejeição.
             if tipo_ocorrencia:
                 PrazoService._registrar_historico(
                     db,
@@ -549,12 +577,14 @@ class PrazoService:
 
             return prazo
 
+        # Trata erros de integridade durante a atualização.
         except IntegrityError:
             db.rollback()
             raise ValueError(
                 "Não foi possível atualizar o prazo."
             )
 
+        # Desfaz a transação caso ocorra qualquer outro erro.
         except Exception:
             db.rollback()
             raise

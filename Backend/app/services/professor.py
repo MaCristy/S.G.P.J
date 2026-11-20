@@ -9,10 +9,12 @@ from app.schemas.professor import ProfessorCreate, ProfessorUpdate
 
 class ProfessorService:
 
+    # Lista todos os professores cadastrados.
     @staticmethod
     def listar(db: Session):
         return ProfessorRepository.listar(db)
 
+    # Busca o cadastro de professor associado a um usuário.
     @staticmethod
     def buscar_por_usuario(db: Session, id_usuario: int):
         professor = ProfessorRepository.buscar_por_usuario(
@@ -22,6 +24,7 @@ class ProfessorService:
         if not professor:
             raise LookupError("Cadastro de professor não encontrado.")
 
+        # Impede o acesso quando o cadastro do professor está inativo.
         if professor.situacao != "Ativo":
             raise PermissionError(
                 "O cadastro do professor não está ativo."
@@ -29,6 +32,7 @@ class ProfessorService:
 
         return professor
 
+    # Busca um professor pelo identificador do seu cadastro.
     @staticmethod
     def buscar_por_id(db: Session, id_professor: int):
         professor = ProfessorRepository.buscar_por_id(
@@ -40,10 +44,11 @@ class ProfessorService:
 
         return professor
 
+    # Cadastra um professor após validar o usuário e a identificação funcional.
     @staticmethod
     def criar(db: Session, dados: ProfessorCreate):
 
-        # Verifica se o usuário existe
+        # Verifica se o usuário informado existe.
         usuario = db.execute(
             text("""
                 SELECT id_usuario
@@ -56,7 +61,7 @@ class ProfessorService:
         if not usuario:
             raise LookupError("Usuário informado não encontrado.")
 
-        # Verifica se o usuário já possui cadastro como professor
+        # Impede que um mesmo usuário tenha mais de um cadastro de professor.
         professor_usuario = ProfessorRepository.buscar_por_usuario(
             db, dados.id_usuario
         )
@@ -66,7 +71,7 @@ class ProfessorService:
                 "Esse usuário já possui um cadastro como professor."
             )
 
-        # Verifica se a identificação funcional já está cadastrada
+        # Verifica se a identificação funcional já está cadastrada.
         professor_identificacao = (
             ProfessorRepository.buscar_por_identificacao(
                 db, dados.identificacao_funcional
@@ -86,6 +91,7 @@ class ProfessorService:
 
             return professor
 
+        # Trata conflitos de integridade durante o cadastro.
         except IntegrityError:
             db.rollback()
             raise ValueError(
@@ -93,10 +99,12 @@ class ProfessorService:
                 "Verifique os dados e os vínculos informados."
             )
 
+        # Desfaz a transação caso ocorra qualquer outro erro.
         except Exception:
             db.rollback()
             raise
 
+    # Atualiza os dados de um professor após validar os novos valores.
     @staticmethod
     def atualizar(
         db: Session,
@@ -111,12 +119,13 @@ class ProfessorService:
         if not professor:
             raise LookupError("Professor não encontrado.")
 
+        # Considera somente os campos enviados na atualização.
         dados_atualizacao = dados.model_dump(
             exclude_unset=True,
             exclude_none=True
         )
 
-        # Verifica se o novo usuário existe e não pertence a outro professor
+        # Verifica se o novo usuário existe e não pertence a outro professor.
         if "id_usuario" in dados_atualizacao:
 
             usuario = db.execute(
@@ -143,7 +152,7 @@ class ProfessorService:
                     "Esse usuário já possui cadastro como professor."
                 )
 
-        # Verifica se a identificação funcional já pertence a outro professor
+        # Impede que a identificação funcional seja utilizada por outro professor.
         if "identificacao_funcional" in dados_atualizacao:
 
             outra_identificacao = (
@@ -171,13 +180,14 @@ class ProfessorService:
 
             return professor
 
+        # Trata conflitos de integridade durante a atualização.
         except IntegrityError:
             db.rollback()
             raise ValueError(
                 "Não foi possível atualizar o cadastro do professor."
             )
 
+        # Desfaz a transação caso ocorra qualquer outro erro.
         except Exception:
             db.rollback()
             raise
-

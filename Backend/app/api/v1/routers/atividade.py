@@ -2,22 +2,29 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+# Dependências para acesso ao banco e identificação do usuário autenticado.
 from app.api.deps import get_db, get_current_user
 from app.models.usuario import Usuario
+
+# Schemas utilizados na entrada e na resposta dos dados.
 from app.schemas.atividade import (
     AtividadeCreate,
     AtividadeUpdate,
     AtividadeResponse
 )
+
+# Serviço responsável pelas regras de negócio das atividades.
 from app.services.atividade import AtividadeService
 
 
+# Configuração das rotas de atividades.
 router = APIRouter(
     prefix="/atividades",
     tags=["Atividades"]
 )
 
 
+# Lista as atividades disponíveis para o usuário autenticado.
 @router.get("/", response_model=list[AtividadeResponse])
 def listar_atividades(
     db: Session = Depends(get_db),
@@ -33,6 +40,7 @@ def listar_atividades(
         )
 
 
+# Lista as atividades vinculadas a um caso jurídico específico.
 @router.get("/caso/{id_caso}", response_model=list[AtividadeResponse])
 def listar_atividades_por_caso(
     id_caso: int,
@@ -57,6 +65,7 @@ def listar_atividades_por_caso(
         )
 
 
+# Lista as atividades atribuídas a um responsável específico.
 @router.get(
     "/responsavel/{id_responsavel}",
     response_model=list[AtividadeResponse]
@@ -84,6 +93,7 @@ def listar_atividades_por_responsavel(
         )
 
 
+# Busca uma atividade pelo seu identificador.
 @router.get("/{id_atividade}", response_model=AtividadeResponse)
 def buscar_atividade(
     id_atividade: int,
@@ -108,6 +118,7 @@ def buscar_atividade(
         )
 
 
+# Cadastra uma nova atividade.
 @router.post(
     "/",
     response_model=AtividadeResponse,
@@ -142,6 +153,7 @@ def criar_atividade(
         )
 
 
+# Atualiza os dados de uma atividade existente.
 @router.patch(
     "/{id_atividade}",
     response_model=AtividadeResponse

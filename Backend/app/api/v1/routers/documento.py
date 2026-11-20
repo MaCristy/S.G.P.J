@@ -14,23 +14,33 @@ from fastapi import (
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
+# Dependências para acesso ao banco e identificação do usuário autenticado.
 from app.api.deps import get_db, get_current_user
+
+# Configurações do armazenamento de documentos.
 from app.config.settings import settings
+
 from app.models.usuario import Usuario
+
+# Schemas utilizados na entrada e na resposta dos dados.
 from app.schemas.documento import (
     DocumentoCreate,
     DocumentoUpdate,
     DocumentoResponse
 )
+
+# Serviço responsável pelas regras de negócio dos documentos.
 from app.services.documento_service import DocumentoService
 
 
+# Configuração das rotas de documentos.
 router = APIRouter(
     prefix="/documentos",
     tags=["Documentos"]
 )
 
 
+# Lista os documentos disponíveis para o usuário autenticado.
 @router.get("/", response_model=list[DocumentoResponse])
 def listar_documentos(
     db: Session = Depends(get_db),
@@ -46,6 +56,7 @@ def listar_documentos(
         )
 
 
+# Lista os documentos vinculados a um caso jurídico.
 @router.get("/caso/{id_caso}", response_model=list[DocumentoResponse])
 def listar_documentos_por_caso(
     id_caso: int,
@@ -70,6 +81,7 @@ def listar_documentos_por_caso(
         )
 
 
+# Lista os documentos vinculados a um atendimento.
 @router.get(
     "/atendimento/{id_atendimento}",
     response_model=list[DocumentoResponse]
@@ -97,6 +109,7 @@ def listar_documentos_por_atendimento(
         )
 
 
+# Recebe, valida e armazena um arquivo PDF.
 @router.post(
     "/upload",
     response_model=DocumentoResponse,
@@ -110,6 +123,7 @@ async def upload_documento(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(get_current_user)
 ):
+    # Valida o nome original do arquivo.
     nome_original = Path(arquivo.filename or "").name.strip()
 
     if not nome_original:
@@ -118,12 +132,14 @@ async def upload_documento(
             detail="O arquivo precisa ter um nome válido."
         )
 
+    # Permite somente arquivos com extensão PDF.
     if Path(nome_original).suffix.lower() != ".pdf":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Apenas arquivos PDF são permitidos."
         )
 
+    # Verifica o tipo de conteúdo informado no envio.
     if arquivo.content_type not in (
         None,
         "application/pdf",
@@ -134,6 +150,7 @@ async def upload_documento(
             detail="O tipo de arquivo enviado não é permitido."
         )
 
+    # Lê o arquivo respeitando o limite máximo configurado.
     limite_bytes = settings.DOCUMENTOS_MAX_SIZE_MB * 1024 * 1024
 
     conteudo = await arquivo.read(limite_bytes + 1)
@@ -153,20 +170,20 @@ async def upload_documento(
             )
         )
 
+    # Confirma a assinatura inicial de um arquivo PDF.
     if not conteudo.startswith(b"%PDF-"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="O conteúdo enviado não corresponde a um PDF válido."
         )
 
+    # Gera um nome interno único para o armazenamento.
     nome_arquivo = f"{uuid4().hex}.pdf"
 
     diretorio = settings.DOCUMENTOS_DIR.resolve()
     caminho_arquivo = diretorio / nome_arquivo
 
-    print("ID DO CASO:", repr(id_caso))
-    print("ID DO ATENDIMENTO:", repr(id_atendimento))
-
+    # Prepara os metadados que serão registrados no banco.
     dados = DocumentoCreate(
         id_caso=id_caso,
         id_atendimento=id_atendimento,
@@ -178,9 +195,11 @@ async def upload_documento(
     )
 
     try:
+        # Cria a pasta privada e grava o arquivo.
         diretorio.mkdir(parents=True, exist_ok=True)
         caminho_arquivo.write_bytes(conteudo)
 
+        # Registra os dados do documento no banco.
         documento = DocumentoService.criar(
             db,
             dados,
@@ -214,13 +233,16 @@ async def upload_documento(
         )
 
     except Exception:
+        # Remove o arquivo físico se ocorrer uma falha no processamento.
         caminho_arquivo.unlink(missing_ok=True)
         raise
 
     finally:
+        # Fecha o arquivo recebido após o processamento.
         await arquivo.close()
 
 
+# Disponibiliza o arquivo físico após verificar as permissões.
 @router.get("/{id_documento}/arquivo")
 def baixar_arquivo_documento(
     id_documento: int,
@@ -250,7 +272,7 @@ def baixar_arquivo_documento(
         diretorio / documento.caminho_armazenamento
     ).resolve()
 
-    # Garante que o arquivo esteja dentro da pasta autorizada.
+    # Impede que o acesso ultrapasse os limites da pasta autorizada.
     if (
         caminho_arquivo == diretorio
         or diretorio not in caminho_arquivo.parents
@@ -260,12 +282,14 @@ def baixar_arquivo_documento(
             detail="Arquivo não encontrado."
         )
 
+    # Verifica se o arquivo físico realmente existe.
     if not caminho_arquivo.is_file():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="O arquivo físico deste documento não foi encontrado."
         )
 
+    # Retorna o PDF para download.
     return FileResponse(
         path=caminho_arquivo,
         media_type="application/pdf",
@@ -273,6 +297,7 @@ def baixar_arquivo_documento(
     )
 
 
+# Busca os metadados de um documento pelo identificador.
 @router.get("/{id_documento}", response_model=DocumentoResponse)
 def buscar_documento(
     id_documento: int,
@@ -297,6 +322,7 @@ def buscar_documento(
         )
 
 
+# Cadastra os metadados de um documento.
 @router.post(
     "/",
     response_model=DocumentoResponse,
@@ -331,6 +357,7 @@ def criar_documento(
         )
 
 
+# Atualiza os metadados de um documento existente.
 @router.patch(
     "/{id_documento}",
     response_model=DocumentoResponse

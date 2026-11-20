@@ -9,6 +9,7 @@ from app.models.usuario import Usuario
 
 class DocumentoService:
 
+    # Busca o cadastro acadêmico do aluno associado ao usuário.
     @staticmethod
     def _buscar_id_aluno(db: Session, id_usuario: int):
         resultado = db.execute(
@@ -22,6 +23,7 @@ class DocumentoService:
 
         return resultado.id_aluno if resultado else None
 
+    # Busca o cadastro ativo do professor associado ao usuário.
     @staticmethod
     def _buscar_id_professor(db: Session, id_usuario: int):
         resultado = db.execute(
@@ -36,6 +38,7 @@ class DocumentoService:
 
         return resultado.id_professor if resultado else None
 
+    # Localiza um documento respeitando as permissões de cada perfil.
     @staticmethod
     def _buscar_documento_permitido(
         db: Session,
@@ -75,6 +78,7 @@ class DocumentoService:
             "Perfil sem permissão para acessar documentos."
         )
 
+    # Lista os documentos que o usuário autenticado tem permissão para visualizar.
     @staticmethod
     def listar(db: Session, usuario: Usuario):
         if usuario.perfil == "Gestão":
@@ -108,6 +112,7 @@ class DocumentoService:
             "Perfil sem permissão para consultar documentos."
         )
 
+    # Busca um documento específico e verifica se o usuário pode acessá-lo.
     @staticmethod
     def buscar_por_id(
         db: Session,
@@ -123,6 +128,7 @@ class DocumentoService:
 
         return documento
 
+    # Lista os documentos associados a um caso jurídico.
     @staticmethod
     def listar_por_caso(
         db: Session,
@@ -149,6 +155,7 @@ class DocumentoService:
             if documento.id_caso == id_caso
         ]
 
+    # Lista os documentos associados a um atendimento.
     @staticmethod
     def listar_por_atendimento(
         db: Session,
@@ -167,6 +174,7 @@ class DocumentoService:
         if not atendimento:
             raise LookupError("Atendimento não encontrado.")
 
+        # Permite que a Gestão consulte documentos de atendimentos sem caso vinculado.
         if atendimento.id_caso is None:
             if usuario.perfil == "Gestão":
                 return DocumentoRepository.listar_por_atendimento(
@@ -183,12 +191,14 @@ class DocumentoService:
             if documento.id_atendimento == id_atendimento
         ]
 
+    # Cadastra um documento e valida seus vínculos e permissões.
     @staticmethod
     def criar(
         db: Session,
         dados,
         usuario: Usuario
     ):
+        # Somente Aluno e Gestão podem cadastrar documentos.
         if usuario.perfil not in ("Aluno", "Gestão"):
             raise PermissionError(
                 "Somente alunos e Gestão podem cadastrar documentos."
@@ -199,13 +209,14 @@ class DocumentoService:
         id_caso = dados_documento.get("id_caso")
         id_atendimento = dados_documento.get("id_atendimento")
 
+        # Exige pelo menos um vínculo para o documento.
         if id_caso is None and id_atendimento is None:
             raise ValueError(
                 "O documento deve estar vinculado a um caso jurídico "
                 "ou a um atendimento."
             )
 
-        # Valida o caso jurídico.
+        # Valida a existência do caso jurídico informado.
         caso = None
 
         if id_caso is not None:
@@ -221,7 +232,7 @@ class DocumentoService:
             if not caso:
                 raise LookupError("Caso jurídico não encontrado.")
 
-        # Valida o atendimento.
+        # Valida a existência do atendimento informado.
         atendimento = None
 
         if id_atendimento is not None:
@@ -237,7 +248,7 @@ class DocumentoService:
             if not atendimento:
                 raise LookupError("Atendimento não encontrado.")
 
-        # Confere a compatibilidade entre os vínculos.
+        # Garante que o atendimento pertença ao caso informado.
         if (
             caso is not None
             and atendimento is not None
@@ -247,7 +258,7 @@ class DocumentoService:
                 "O atendimento informado não pertence ao caso jurídico indicado."
             )
 
-        # O aluno só pode cadastrar documentos em seus próprios casos.
+        # O aluno só pode cadastrar documentos em casos sob sua responsabilidade.
         if usuario.perfil == "Aluno":
             id_aluno = DocumentoService._buscar_id_aluno(
                 db, usuario.id_usuario
@@ -287,7 +298,7 @@ class DocumentoService:
                     "Você só pode cadastrar documentos nos seus próprios casos."
                 )
 
-        # O usuário autenticado é sempre o responsável pela inclusão.
+        # Define o usuário autenticado como responsável pela inclusão.
         dados_documento["id_usuario_inclusao"] = usuario.id_usuario
 
         try:
@@ -295,6 +306,7 @@ class DocumentoService:
                 db, dados_documento
             )
 
+        # Trata erros de integridade relacionados aos vínculos no banco.
         except IntegrityError:
             db.rollback()
             raise ValueError(
@@ -302,10 +314,12 @@ class DocumentoService:
                 "Verifique os vínculos informados."
             )
 
+        # Desfaz a transação caso ocorra qualquer outro erro.
         except Exception:
             db.rollback()
             raise
 
+    # Atualiza os dados de um documento, permitindo alterar seus vínculos.
     @staticmethod
     def atualizar(
         db: Session,
@@ -320,14 +334,15 @@ class DocumentoService:
         if not documento:
             raise LookupError("Documento não encontrado.")
 
+        # Somente Gestão possui permissão para atualizar documentos.
         if usuario.perfil != "Gestão":
             raise PermissionError(
                 "Somente Gestão pode atualizar documentos."
             )
 
+        # Preserva os campos não enviados e permite limpar vínculos com null.
         dados_atualizacao = dados.model_dump(
-            exclude_unset=True,
-            exclude_none=True
+            exclude_unset=True
         )
 
         # Impede a alteração do usuário responsável pela inclusão.
@@ -340,12 +355,14 @@ class DocumentoService:
             "id_atendimento", documento.id_atendimento
         )
 
+        # Impede que o documento fique sem vínculo com caso ou atendimento.
         if id_caso_final is None and id_atendimento_final is None:
             raise ValueError(
                 "O documento deve permanecer vinculado a um caso jurídico "
                 "ou a um atendimento."
             )
 
+        # Verifica se o caso informado existe.
         if id_caso_final is not None:
             caso = db.execute(
                 text("""
@@ -359,6 +376,7 @@ class DocumentoService:
             if not caso:
                 raise LookupError("Caso jurídico não encontrado.")
 
+        # Verifica se o atendimento existe e pertence ao caso informado.
         if id_atendimento_final is not None:
             atendimento = db.execute(
                 text("""
@@ -385,12 +403,14 @@ class DocumentoService:
                 db, documento, dados_atualizacao
             )
 
+        # Trata erros de integridade durante a atualização.
         except IntegrityError:
             db.rollback()
             raise ValueError(
                 "Não foi possível atualizar o documento."
             )
 
+        # Desfaz a transação caso ocorra qualquer outro erro.
         except Exception:
             db.rollback()
             raise

@@ -8,6 +8,7 @@ from app.schemas.atividade import AtividadeCreate
 
 class AtividadeRepository:
 
+    # Lista todas as atividades, começando pelas mais recentes.
     @staticmethod
     def listar(db: Session):
         return (
@@ -16,6 +17,7 @@ class AtividadeRepository:
             .all()
         )
 
+    # Lista as atividades vinculadas aos casos sob responsabilidade do aluno.
     @staticmethod
     def listar_por_aluno(db: Session, id_aluno: int):
         return (
@@ -31,6 +33,7 @@ class AtividadeRepository:
             .all()
         )
 
+    # Lista as atividades vinculadas aos casos supervisionados pelo professor.
     @staticmethod
     def listar_por_professor(db: Session, id_professor: int):
         return (
@@ -46,6 +49,7 @@ class AtividadeRepository:
             .all()
         )
 
+    # Busca uma atividade pelo seu identificador.
     @staticmethod
     def buscar_por_id(db: Session, id_atividade: int):
         return (
@@ -54,6 +58,7 @@ class AtividadeRepository:
             .first()
         )
 
+    # Busca uma atividade vinculada a um caso sob responsabilidade do aluno.
     @staticmethod
     def buscar_por_id_e_aluno(
         db: Session,
@@ -73,6 +78,7 @@ class AtividadeRepository:
             .first()
         )
 
+    # Busca uma atividade vinculada a um caso supervisionado pelo professor.
     @staticmethod
     def buscar_por_id_e_professor(
         db: Session,
@@ -92,6 +98,7 @@ class AtividadeRepository:
             .first()
         )
 
+    # Lista as atividades pertencentes a um caso específico.
     @staticmethod
     def listar_por_caso(db: Session, id_caso: int):
         return (
@@ -101,6 +108,7 @@ class AtividadeRepository:
             .all()
         )
 
+    # Lista as atividades atribuídas a um responsável específico.
     @staticmethod
     def listar_por_responsavel(db: Session, id_responsavel: int):
         return (
@@ -110,6 +118,7 @@ class AtividadeRepository:
             .all()
         )
 
+    # Cadastra uma atividade com os dados recebidos.
     @staticmethod
     def criar(db: Session, dados: AtividadeCreate):
         atividade = Atividade(
@@ -126,6 +135,7 @@ class AtividadeRepository:
 
         return atividade
 
+    # Atualiza os campos informados na atividade existente.
     @staticmethod
     def atualizar(
         db: Session,

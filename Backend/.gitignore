@@ -24,3 +24,5 @@ htmlcov/
 uploads/
 temp/
 
+# Documentos enviados ao sistema
+storage/documentos/

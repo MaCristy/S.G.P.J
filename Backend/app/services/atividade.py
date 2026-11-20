@@ -13,6 +13,7 @@ from app.models.historico_caso import HistoricoCaso
 
 class AtividadeService:
 
+    # Registra uma ocorrência no histórico do caso relacionado à atividade.
     @staticmethod
     def _registrar_historico(
         db: Session,
@@ -32,6 +33,7 @@ class AtividadeService:
 
         db.add(historico)
 
+    # Busca o identificador do cadastro de aluno vinculado ao usuário.
     @staticmethod
     def _buscar_id_aluno(db: Session, id_usuario: int):
         resultado = db.execute(
@@ -45,6 +47,7 @@ class AtividadeService:
 
         return resultado.id_aluno if resultado else None
 
+    # Busca o identificador do professor, considerando somente cadastros ativos.
     @staticmethod
     def _buscar_id_professor(db: Session, id_usuario: int):
         resultado = db.execute(
@@ -59,6 +62,7 @@ class AtividadeService:
 
         return resultado.id_professor if resultado else None
 
+    # Busca uma atividade somente quando o usuário possui acesso a ela.
     @staticmethod
     def _buscar_atividade_permitida(
         db: Session,
@@ -98,6 +102,7 @@ class AtividadeService:
             "Perfil sem permissão para acessar atividades."
         )
 
+    # Lista as atividades conforme o perfil e os vínculos do usuário.
     @staticmethod
     def listar(db: Session, usuario: Usuario):
         if usuario.perfil == "Gestão":
@@ -131,6 +136,7 @@ class AtividadeService:
             "Perfil sem permissão para consultar atividades."
         )
 
+    # Busca uma atividade individual respeitando as permissões do usuário.
     @staticmethod
     def buscar_por_id(
         db: Session,
@@ -146,6 +152,7 @@ class AtividadeService:
 
         return atividade
 
+    # Lista as atividades de um caso, respeitando o acesso de cada perfil.
     @staticmethod
     def listar_por_caso(
         db: Session,
@@ -177,6 +184,7 @@ class AtividadeService:
             if atividade.id_caso == id_caso
         ]
 
+    # Lista as atividades de um responsável conforme as permissões do usuário.
     @staticmethod
     def listar_por_responsavel(
         db: Session,
@@ -202,6 +210,7 @@ class AtividadeService:
             if atividade.id_responsavel == id_responsavel
         ]
 
+    # Cadastra uma atividade após validar o caso, as permissões e o responsável.
     @staticmethod
     def criar(
         db: Session,
@@ -229,7 +238,7 @@ class AtividadeService:
         if not caso:
             raise LookupError("Caso jurídico não encontrado.")
 
-        # RN13: impedir cadastro de atividades em casos encerrados.
+        # RN13: impede o cadastro de atividades em casos encerrados.
         if caso.situacao == "Encerrado":
             raise ValueError(
                 "Não é permitido cadastrar novas atividades "
@@ -260,7 +269,7 @@ class AtividadeService:
                     "sob sua orientação."
                 )
 
-        # RN14: a atividade deve pertencer ao aluno responsável pelo caso.
+        # RN14: exige que o caso possua um aluno responsável.
         if not caso.id_aluno_responsavel:
             raise ValueError(
                 "O caso precisa ter um aluno responsável antes "
@@ -286,7 +295,7 @@ class AtividadeService:
 
         id_responsavel_esperado = responsavel.id_usuario
 
-        # RN14: rejeitar responsável diferente do aluno vinculado ao caso.
+        # RN14: rejeita um responsável diferente do aluno do caso.
         if (
             dados.id_responsavel is not None
             and dados.id_responsavel != id_responsavel_esperado
@@ -302,6 +311,7 @@ class AtividadeService:
             }
         )
 
+        # Define automaticamente a data quando a atividade já nasce concluída.
         if dados.situacao == "Concluída":
             data_conclusao = datetime.now()
         else:
@@ -332,6 +342,7 @@ class AtividadeService:
 
             return atividade
 
+        # Desfaz a transação diante de violações de integridade.
         except IntegrityError:
             db.rollback()
             raise ValueError(
@@ -339,10 +350,12 @@ class AtividadeService:
                 "Verifique os dados e os vínculos informados."
             )
 
+        # Desfaz a transação diante de qualquer outro erro inesperado.
         except Exception:
             db.rollback()
             raise
 
+    # Atualiza uma atividade, validando permissões, vínculos e regras de negócio.
     @staticmethod
     def atualizar(
         db: Session,
@@ -357,11 +370,13 @@ class AtividadeService:
         if not atividade:
             raise LookupError("Atividade não encontrada.")
 
+        # Obtém somente os campos enviados na solicitação.
         dados_atualizacao = dados.model_dump(
             exclude_unset=True,
             exclude_none=True
         )
 
+        # Guarda os valores anteriores para identificar alterações no histórico.
         dados_anteriores = {
             campo: getattr(atividade, campo)
             for campo in dados_atualizacao
@@ -417,8 +432,7 @@ class AtividadeService:
                         "que não está sob sua orientação."
                     )
 
-        # RN14: a atividade deve permanecer atribuída
-        # ao aluno responsável pelo caso.
+        # RN14: identifica o aluno responsável pelo caso de destino.
         id_caso_destino = dados_atualizacao.get(
             "id_caso", atividade.id_caso
         )
@@ -459,6 +473,7 @@ class AtividadeService:
 
         id_responsavel_esperado = responsavel.id_usuario
 
+        # Rejeita a alteração manual para um responsável diferente do aluno do caso.
         if "id_responsavel" in dados_atualizacao:
             if (
                 dados_atualizacao["id_responsavel"]
@@ -469,16 +484,22 @@ class AtividadeService:
                     "responsável pelo caso."
                 )
 
+        # Guarda o responsável anterior, inclusive quando a mudança é automática.
+        dados_anteriores.setdefault(
+            "id_responsavel",
+            atividade.id_responsavel
+        )
+
+        # Ajusta o responsável ao aluno vinculado ao caso de destino.
         dados_atualizacao["id_responsavel"] = id_responsavel_esperado
 
+        # Preenche a data de conclusão automaticamente quando necessário.
         if dados_atualizacao.get("situacao") == "Concluída":
             if not atividade.data_conclusao:
                 dados_atualizacao["data_conclusao"] = datetime.now()
 
-            # Registrar também a data de conclusão automática
-            # na comparação utilizada para gerar o históri    co.
+            # Inclui a data anterior na comparação do histórico.
             dados_anteriores["data_conclusao"] = atividade.data_conclusao
-
 
         try:
             atividade = AtividadeRepository.atualizar(
@@ -487,6 +508,7 @@ class AtividadeService:
                 dados_atualizacao
             )
 
+            # Compara os valores anteriores e atuais para identificar alterações.
             alteracoes = []
 
             for campo, valor_anterior in dados_anteriores.items():
@@ -497,6 +519,7 @@ class AtividadeService:
                         f"{campo}: '{valor_anterior}' para '{valor_novo}'"
                     )
 
+            # Registra no histórico somente quando houve alteração efetiva.
             if alteracoes:
                 descricao_historico = (
                     f"A atividade '{atividade.titulo}' foi atualizada. "
@@ -517,12 +540,14 @@ class AtividadeService:
 
             return atividade
 
+        # Desfaz a transação diante de violações de integridade.
         except IntegrityError:
             db.rollback()
             raise ValueError(
                 "Não foi possível atualizar a atividade."
             )
 
+        # Desfaz a transação diante de qualquer outro erro inesperado.
         except Exception:
             db.rollback()
             raise

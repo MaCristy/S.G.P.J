@@ -1,10 +1,12 @@
+
 """
 Pacote de Models ORM (SQLAlchemy) do S.G.P.J.
 
-Cada módulo neste pacote corresponde a uma entidade do banco de dados existente.
-Os models mapeiam as tabelas criadas pelo Database/schema.sql sem as recriar.
+Cada módulo deste pacote corresponde a uma entidade do banco de dados.
+Os models mapeiam as tabelas existentes sem recriá-las.
 """
 
+# Importa os models para disponibilizá-los pelo pacote.
 from app.models.assistido import Assistido
 from app.models.atendimento import Atendimento
 from app.models.usuario import Usuario
@@ -17,4 +19,16 @@ from app.models.prazo import Prazo
 from app.models.historico_caso import HistoricoCaso
 
 
-__all__ = ["Assistido", "Atendimento", "Usuario", "CasoJuridico", "Aluno", "Professor", "professor_aluno", "Atividade", "Documento", "Prazo", "HistoricoCaso"]
+# Define os models disponibilizados em importações do pacote.
+__all__ = [
+    "Assistido",
+    "Atendimento",
+    "Usuario",
+    "CasoJuridico",
+    "Aluno",
+    "Professor",
+    "Atividade",
+    "Documento",
+    "Prazo",
+    "HistoricoCaso"
+]

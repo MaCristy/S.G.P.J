@@ -9,6 +9,7 @@ from app.schemas.assistido import AssistidoCreate, AssistidoUpdate
 class AssistidoRepository:
     """Responsável pelo acesso aos dados dos assistidos."""
 
+    # Lista todos os assistidos, ordenados pelo nome.
     @staticmethod
     def listar(db: Session):
         return (
@@ -16,8 +17,8 @@ class AssistidoRepository:
             .order_by(Assistido.nome_completo.asc())
             .all()
         )
-    
 
+    # Lista os assistidos que possuem casos sob responsabilidade do aluno.
     @staticmethod
     def listar_por_aluno(db: Session, id_aluno: int):
         return (
@@ -29,11 +30,13 @@ class AssistidoRepository:
             .filter(
                 CasoJuridico.id_aluno_responsavel == id_aluno
             )
+            # Evita repetir assistidos que possuem mais de um caso com o aluno.
             .distinct()
             .order_by(Assistido.nome_completo.asc())
             .all()
         )
 
+    # Lista os assistidos que possuem casos supervisionados pelo professor.
     @staticmethod
     def listar_por_professor(db: Session, id_professor: int):
         return (
@@ -45,12 +48,13 @@ class AssistidoRepository:
             .filter(
                 CasoJuridico.id_professor_orientador == id_professor
             )
+            # Evita repetir assistidos que possuem mais de um caso com o professor.
             .distinct()
             .order_by(Assistido.nome_completo.asc())
             .all()
         )
 
-    
+    # Busca um assistido quando ele possui vínculo com um caso do aluno.
     @staticmethod
     def buscar_por_id_e_aluno(
         db: Session,
@@ -70,6 +74,7 @@ class AssistidoRepository:
             .first()
         )
 
+    # Busca um assistido quando ele possui vínculo com um caso supervisionado pelo professor.
     @staticmethod
     def buscar_por_id_e_professor(
         db: Session,
@@ -89,7 +94,7 @@ class AssistidoRepository:
             .first()
         )
 
-
+    # Busca um assistido pelo seu identificador.
     @staticmethod
     def buscar_por_id(db: Session, id_assistido: int):
         return (
@@ -98,6 +103,7 @@ class AssistidoRepository:
             .first()
         )
 
+    # Busca um assistido pelo identificador cadastral.
     @staticmethod
     def buscar_por_identificador(
         db: Session,
@@ -112,6 +118,7 @@ class AssistidoRepository:
             .first()
         )
 
+    # Cadastra um assistido e atualiza seus dados na sessão do banco.
     @staticmethod
     def criar(db: Session, dados: AssistidoCreate):
         assistido = Assistido(**dados.model_dump())
@@ -122,6 +129,7 @@ class AssistidoRepository:
 
         return assistido
 
+    # Atualiza somente os campos enviados na solicitação.
     @staticmethod
     def atualizar(
         db: Session,

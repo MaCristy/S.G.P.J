@@ -2,22 +2,29 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+# Dependências para acesso ao banco e identificação do usuário autenticado.
 from app.api.deps import get_db, get_current_user
 from app.models.usuario import Usuario
+
+# Schemas utilizados na entrada e na resposta dos dados.
 from app.schemas.prazo import (
     PrazoCreate,
     PrazoUpdate,
     PrazoResponse
 )
+
+# Serviço responsável pelas regras de negócio dos prazos.
 from app.services.prazo_service import PrazoService
 
 
+# Configuração das rotas de prazos.
 router = APIRouter(
     prefix="/prazos",
     tags=["Prazos"]
 )
 
 
+# Lista os prazos disponíveis para o usuário autenticado.
 @router.get("/", response_model=list[PrazoResponse])
 def listar_prazos(
     db: Session = Depends(get_db),
@@ -33,6 +40,7 @@ def listar_prazos(
         )
 
 
+# Lista os prazos vinculados a um caso jurídico específico.
 @router.get("/caso/{id_caso}", response_model=list[PrazoResponse])
 def listar_prazos_por_caso(
     id_caso: int,
@@ -57,6 +65,7 @@ def listar_prazos_por_caso(
         )
 
 
+# Lista os prazos atribuídos a um responsável específico.
 @router.get(
     "/responsavel/{id_responsavel}",
     response_model=list[PrazoResponse]
@@ -78,6 +87,7 @@ def listar_prazos_por_responsavel(
         )
 
 
+# Busca um prazo pelo seu identificador.
 @router.get("/{id_prazo}", response_model=PrazoResponse)
 def buscar_prazo(
     id_prazo: int,
@@ -102,6 +112,7 @@ def buscar_prazo(
         )
 
 
+# Cadastra um novo prazo.
 @router.post(
     "/",
     response_model=PrazoResponse,
@@ -130,6 +141,7 @@ def criar_prazo(
         )
 
 
+# Atualiza os dados de um prazo existente.
 @router.patch("/{id_prazo}", response_model=PrazoResponse)
 def atualizar_prazo(
     id_prazo: int,

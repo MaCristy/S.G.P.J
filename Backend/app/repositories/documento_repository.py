@@ -8,6 +8,7 @@ from app.models.atendimento import Atendimento
 
 class DocumentoRepository:
 
+    # Lista todos os documentos, começando pelos mais recentes.
     @staticmethod
     def listar(db: Session):
         return (
@@ -16,6 +17,7 @@ class DocumentoRepository:
             .all()
         )
 
+    # Lista documentos vinculados aos casos ou atendimentos relacionados ao aluno.
     @staticmethod
     def listar_por_aluno(db: Session, id_aluno: int):
         return (
@@ -37,11 +39,13 @@ class DocumentoRepository:
                     )
                 ))
             )
+            # Evita duplicidade quando o documento corresponde a mais de um vínculo.
             .distinct()
             .order_by(Documento.data_inclusao.desc())
             .all()
         )
 
+    # Lista documentos vinculados aos casos ou atendimentos supervisionados pelo professor.
     @staticmethod
     def listar_por_professor(db: Session, id_professor: int):
         return (
@@ -63,11 +67,13 @@ class DocumentoRepository:
                     )
                 ))
             )
+            # Evita duplicidade quando o documento corresponde a mais de um vínculo.
             .distinct()
             .order_by(Documento.data_inclusao.desc())
             .all()
         )
 
+    # Busca um documento pelo seu identificador.
     @staticmethod
     def buscar_por_id(db: Session, id_documento: int):
         return (
@@ -76,6 +82,7 @@ class DocumentoRepository:
             .first()
         )
 
+    # Busca um documento ao verificar se está relacionado a um caso acessível ao aluno.
     @staticmethod
     def buscar_por_id_e_aluno(
         db: Session,
@@ -109,6 +116,7 @@ class DocumentoRepository:
             .first()
         )
 
+    # Busca um documento ao verificar se está relacionado a um caso supervisionado pelo professor.
     @staticmethod
     def buscar_por_id_e_professor(
         db: Session,
@@ -142,6 +150,7 @@ class DocumentoRepository:
             .first()
         )
 
+    # Lista os documentos vinculados a um caso jurídico.
     @staticmethod
     def listar_por_caso(db: Session, id_caso: int):
         return (
@@ -151,6 +160,7 @@ class DocumentoRepository:
             .all()
         )
 
+    # Lista os documentos vinculados a um atendimento.
     @staticmethod
     def listar_por_atendimento(db: Session, id_atendimento: int):
         return (
@@ -160,6 +170,7 @@ class DocumentoRepository:
             .all()
         )
 
+    # Cadastra um documento e confirma sua persistência no banco de dados.
     @staticmethod
     def criar(db: Session, dados: dict):
         documento = Documento(**dados)
@@ -170,6 +181,7 @@ class DocumentoRepository:
 
         return documento
 
+    # Atualiza os campos informados e recarrega os dados persistidos.
     @staticmethod
     def atualizar(db: Session, documento: Documento, dados: dict):
         for campo, valor in dados.items():

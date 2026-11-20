@@ -1,19 +1,22 @@
+
 """
-Pacote de Schemas Pydantic (v2) do S.G.P.J.
+Pacote de schemas Pydantic do S.G.P.J.
 
-Schemas definem os contratos de entrada e saída da API REST.
-São separados por entidade e por operação (Create, Update, Response).
+Define os contratos de entrada e saída utilizados pela API REST.
+Os schemas são organizados por entidade e operação, incluindo
+cadastro, atualização e resposta.
 
-Módulos futuros:
-    usuario.py         — UsuarioCreate, UsuarioResponse, TokenResponse
-    aluno.py           — AlunoCreate, AlunoResponse
-    professor.py       — ProfessorCreate, ProfessorResponse
-    assistido.py       — AssistidoCreate, AssistidoUpdate, AssistidoResponse
-    caso_juridico.py   — CasoCreate, CasoUpdate, CasoResponse
-    atendimento.py     — AtendimentoCreate, AtendimentoResponse
-    atividade.py       — AtividadeCreate, AtividadeUpdate, AtividadeResponse
-    prazo.py           — PrazoCreate, PrazoUpdate, PrazoResponse
-    documento.py       — DocumentoCreate, DocumentoResponse
-    historico_caso.py  — HistoricoResponse
+Módulos disponíveis:
+    aluno.py
+    assistido.py
+    atendimento.py
+    atividade.py
+    auth.py
+    caso_juridico.py
+    dashboard.py
+    documento.py
+    historico_caso.py
+    prazo.py
+    professor.py
+    usuario.py
 """
-

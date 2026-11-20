@@ -14,9 +14,14 @@ from app.models.usuario import Usuario
 
 
 class DashboardRepository:
+    """
+    Centraliza as consultas utilizadas para gerar os indicadores
+    e as informações exibidas no painel de gestão.
+    """
 
     @staticmethod
     def _contar(query) -> int:
+        # Executa a consulta de contagem e retorna zero caso não haja resultados.
         return query.scalar() or 0
 
     @staticmethod
@@ -25,6 +30,7 @@ class DashboardRepository:
         data_inicial: date,
         data_final: date
     ) -> int:
+        # Conta os atendimentos registrados dentro do período informado.
         return DashboardRepository._contar(
             db.query(func.count(Atendimento.id_atendimento))
             .filter(
@@ -39,6 +45,7 @@ class DashboardRepository:
         data_inicial: date,
         data_final: date
     ) -> int:
+        # Conta os casos cuja data de abertura pertence ao período informado.
         return DashboardRepository._contar(
             db.query(func.count(CasoJuridico.id_caso))
             .filter(
@@ -49,6 +56,7 @@ class DashboardRepository:
 
     @staticmethod
     def obter_total_casos_ativos(db: Session) -> int:
+        # Conta todos os casos que ainda não foram encerrados.
         return DashboardRepository._contar(
             db.query(func.count(CasoJuridico.id_caso))
             .filter(CasoJuridico.situacao != "Encerrado")
@@ -60,6 +68,7 @@ class DashboardRepository:
         data_inicial: date,
         data_final: date
     ) -> int:
+        # Conta os casos encerrados dentro do período selecionado.
         return DashboardRepository._contar(
             db.query(func.count(CasoJuridico.id_caso))
             .filter(
@@ -71,6 +80,7 @@ class DashboardRepository:
 
     @staticmethod
     def obter_total_atividades_pendentes(db: Session) -> int:
+        # Conta atividades pendentes ou em andamento, somente em casos ativos.
         return DashboardRepository._contar(
             db.query(func.count(Atividade.id_atividade))
             .join(
@@ -88,9 +98,11 @@ class DashboardRepository:
 
     @staticmethod
     def obter_total_prazos_proximos(db: Session) -> int:
+        # Define o intervalo entre hoje e os próximos sete dias.
         hoje = date.today()
         limite = hoje + timedelta(days=7)
 
+        # Conta prazos pendentes dentro do intervalo e vinculados a casos ativos.
         return DashboardRepository._contar(
             db.query(func.count(Prazo.id_prazo))
             .join(
@@ -107,8 +119,10 @@ class DashboardRepository:
 
     @staticmethod
     def obter_total_prazos_vencidos(db: Session) -> int:
+        # Obtém a data atual para identificar os prazos vencidos.
         hoje = date.today()
 
+        # Conta prazos atrasados que ainda estão pendentes ou marcados como vencidos.
         return DashboardRepository._contar(
             db.query(func.count(Prazo.id_prazo))
             .join(
@@ -124,6 +138,7 @@ class DashboardRepository:
 
     @staticmethod
     def obter_casos_por_situacao(db: Session) -> list[dict]:
+        # Agrupa os casos pela situação e contabiliza cada grupo.
         resultados = (
             db.query(
                 CasoJuridico.situacao,
@@ -133,6 +148,7 @@ class DashboardRepository:
             .all()
         )
 
+        # Organiza os resultados no formato utilizado pelo dashboard.
         return [
             {
                 "identificador": None,
@@ -144,6 +160,7 @@ class DashboardRepository:
 
     @staticmethod
     def obter_casos_por_aluno(db: Session) -> list[dict]:
+        # Conta os casos ativos atribuídos a cada aluno.
         resultados = (
             db.query(
                 Aluno.id_aluno,
@@ -166,6 +183,7 @@ class DashboardRepository:
             .all()
         )
 
+        # Retorna os dados agrupados por aluno.
         return [
             {
                 "identificador": id_aluno,
@@ -177,6 +195,7 @@ class DashboardRepository:
 
     @staticmethod
     def obter_casos_por_professor(db: Session) -> list[dict]:
+        # Conta os casos orientados por cada professor.
         resultados = (
             db.query(
                 Professor.id_professor,
@@ -196,6 +215,7 @@ class DashboardRepository:
             .all()
         )
 
+        # Retorna os quantitativos agrupados por professor.
         return [
             {
                 "identificador": id_professor,
@@ -212,6 +232,7 @@ class DashboardRepository:
         data_final: date
     ) -> list[dict]:
 
+        # Conta os atendimentos registrados por cada aluno no período informado.
         resultados = (
             db.query(
                 Aluno.id_aluno,
@@ -241,6 +262,7 @@ class DashboardRepository:
             .all()
         )
 
+        # Organiza os quantitativos de atendimentos por aluno.
         return [
             {
                 "identificador": id_aluno,
@@ -252,6 +274,7 @@ class DashboardRepository:
 
     @staticmethod
     def obter_prazos_vencidos(db: Session) -> list[dict]:
+        # Identifica prazos atrasados que pertencem a casos não encerrados.
         hoje = date.today()
 
         resultados = (
@@ -270,6 +293,7 @@ class DashboardRepository:
             .all()
         )
 
+        # Formata os prazos encontrados para a lista de atenção do dashboard.
         return [
             {
                 "tipo": "Prazo vencido",
@@ -284,6 +308,7 @@ class DashboardRepository:
 
     @staticmethod
     def obter_prazos_proximos(db: Session) -> list[dict]:
+        # Define o período de consulta dos prazos próximos.
         hoje = date.today()
         limite = hoje + timedelta(days=7)
 
@@ -304,6 +329,7 @@ class DashboardRepository:
             .all()
         )
 
+        # Formata os prazos próximos para exibição no dashboard.
         return [
             {
                 "tipo": "Prazo próximo",
@@ -318,6 +344,7 @@ class DashboardRepository:
 
     @staticmethod
     def obter_atividades_pendentes(db: Session) -> list[dict]:
+        # Busca atividades pendentes ou em andamento em casos não encerrados.
         resultados = (
             db.query(Atividade)
             .join(
@@ -338,6 +365,7 @@ class DashboardRepository:
             .all()
         )
 
+        # Formata as atividades encontradas para a lista de atenção do dashboard.
         return [
             {
                 "tipo": "Atividade pendente",

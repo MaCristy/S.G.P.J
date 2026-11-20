@@ -1,51 +1,66 @@
+
 """
 Ponto de entrada principal da API do S.G.P.J.
 Sistema de Gestão da Prática Jurídica — UNINASSAU.
 
 Responsabilidades:
-    - Instanciar a aplicação FastAPI com metadados e documentação automática.
-    - Registrar os middlewares de CORS.
-    - Incluir os roteadores da API v1.
-    - Configurar handlers de eventos de ciclo de vida (startup / shutdown).
+    - Instanciar a aplicação FastAPI.
+    - Configurar o middleware CORS.
+    - Registrar os roteadores da API v1.
+    - Gerenciar os eventos de inicialização e encerramento.
 
 Restrições:
-    - NÃO cria, altera ou exclui tabelas, índices ou triggers.
+    - Não cria, altera ou exclui tabelas, índices ou triggers.
     - O banco de dados é gerenciado exclusivamente via Database/schema.sql.
 """
+
+# Bibliotecas para registro de eventos e ciclo de vida da aplicação
 import logging
 from contextlib import asynccontextmanager
 
+# Componentes principais do FastAPI
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+# Configurações gerais e roteador principal da API
 from app.config.settings import settings
 from app.api.v1 import api_router_v1
 
-# -----------------------------------------------------------------------------
-# Configuração de logging
-# -----------------------------------------------------------------------------
+
+# ============================================================
+# 1. CONFIGURAÇÃO DE LOGGING
+# Define o nível e o formato das mensagens exibidas no terminal.
+# ============================================================
+
 logging.basicConfig(
     level=logging.DEBUG if settings.DEBUG else logging.INFO,
     format="%(asctime)s | %(levelname)-8s | %(name)s — %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
+
+# Identifica as mensagens de log do S.G.P.J.
 logger = logging.getLogger("sgpj")
 
 
-# -----------------------------------------------------------------------------
-# Ciclo de vida da aplicação
-# -----------------------------------------------------------------------------
+# ============================================================
+# 2. CICLO DE VIDA DA APLICAÇÃO
+# Registra eventos executados na inicialização e no encerramento.
+# ============================================================
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    Gerencia eventos de startup e shutdown da aplicação.
+    Gerencia os eventos de startup e shutdown da aplicação.
 
     Startup:
-        - Loga as configurações não-sensíveis (host, porta, ambiente).
-        - Não executa create_all() nem qualquer DDL.
+        - Exibe informações não sensíveis da configuração.
+        - Não executa alterações na estrutura do banco de dados.
+
     Shutdown:
-        - Loga o encerramento limpo da aplicação.
+        - Registra o encerramento da aplicação.
     """
+
+    # Exibe informações sobre a inicialização do backend
     logger.info("=" * 60)
     logger.info("S.G.P.J. Backend — Iniciando...")
     logger.info(f"  Aplicação : {settings.APP_NAME}")
@@ -54,19 +69,24 @@ async def lifespan(app: FastAPI):
     logger.info(f"  Banco     : {settings.DB_NAME}@{settings.DB_HOST}:{settings.DB_PORT}")
     logger.info(f"  CORS      : {settings.CORS_ORIGINS}")
     logger.info("=" * 60)
+
     yield
+
+    # Registra o encerramento do backend
     logger.info("S.G.P.J. Backend — Encerrado com sucesso.")
 
 
-# -----------------------------------------------------------------------------
-# Instância principal do FastAPI
-# -----------------------------------------------------------------------------
+# ============================================================
+# 3. INSTÂNCIA PRINCIPAL DO FASTAPI
+# Define os metadados, a documentação e as configurações da API.
+# ============================================================
+
 app = FastAPI(
     title=settings.APP_NAME,
     description=(
         "API REST do Sistema de Gestão da Prática Jurídica (S.G.P.J.) — UNINASSAU. "
         "Desenvolvida com FastAPI + SQLAlchemy + MySQL, seguindo arquitetura em camadas "
-        "e as regras de negócio RN01–RN10 do projeto de estágio supervisionado."
+        "e as regras de negócio definidas para o projeto de estágio supervisionado."
     ),
     version="1.0.0",
     contact={
@@ -74,15 +94,22 @@ app = FastAPI(
         "url": "https://github.com/cristina",
     },
     license_info={"name": "Projeto Acadêmico — UNINASSAU, 2026"},
+
+    # Disponibiliza a documentação somente no ambiente de desenvolvimento
     docs_url="/docs" if settings.DEBUG else None,
     redoc_url="/redoc" if settings.DEBUG else None,
     openapi_url="/openapi.json" if settings.DEBUG else None,
+
+    # Associa o gerenciamento de inicialização e encerramento
     lifespan=lifespan,
 )
 
-# -----------------------------------------------------------------------------
-# Middleware: CORS
-# -----------------------------------------------------------------------------
+
+# ============================================================
+# 4. MIDDLEWARE CORS
+# Define quais origens, métodos e cabeçalhos podem acessar a API.
+# ============================================================
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -91,15 +118,20 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "Accept"],
 )
 
-# -----------------------------------------------------------------------------
-# Roteadores da API v1
-# -----------------------------------------------------------------------------
+
+# ============================================================
+# 5. REGISTRO DOS ROTEADORES DA API V1
+# Inclui as rotas dos módulos utilizando o prefixo /api/v1.
+# ============================================================
+
 app.include_router(api_router_v1, prefix="/api/v1")
 
 
-# -----------------------------------------------------------------------------
-# Rota raiz — redireciona para a documentação em desenvolvimento
-# -----------------------------------------------------------------------------
+# ============================================================
+# 6. ROTA RAIZ
+# Retorna informações básicas e os principais endereços da API.
+# ============================================================
+
 @app.get("/", include_in_schema=False)
 def root():
     return {
@@ -107,4 +139,3 @@ def root():
         "docs": "/docs" if settings.DEBUG else "Documentação desabilitada em produção.",
         "health": "/api/v1/health",
     }
-

@@ -1,4 +1,6 @@
+
 from sqlalchemy.orm import Session
+
 from app.models.caso_juridico import CasoJuridico
 from app.models.aluno import Aluno
 from app.models.professor import Professor
@@ -11,6 +13,7 @@ from app.repositories.historico_caso_repository import (
 
 class HistoricoCasoService:
 
+    # Busca o cadastro acadêmico do aluno associado ao usuário.
     @staticmethod
     def _buscar_id_aluno(db: Session, id_usuario: int):
         aluno = (
@@ -26,6 +29,7 @@ class HistoricoCasoService:
 
         return aluno.id_aluno
 
+    # Busca o cadastro ativo do professor associado ao usuário.
     @staticmethod
     def _buscar_id_professor(db: Session, id_usuario: int):
         professor = (
@@ -44,6 +48,7 @@ class HistoricoCasoService:
 
         return professor.id_professor
 
+    # Lista os registros históricos conforme as permissões do perfil.
     @staticmethod
     def listar(db: Session, usuario: Usuario):
         if usuario.perfil == "Gestão":
@@ -69,6 +74,7 @@ class HistoricoCasoService:
             "Você não possui permissão para consultar o histórico."
         )
 
+    # Busca um registro histórico específico respeitando as permissões do usuário.
     @staticmethod
     def buscar_por_id(
         db: Session,
@@ -108,6 +114,7 @@ class HistoricoCasoService:
 
         return historico
 
+    # Lista os registros históricos associados a um caso específico.
     @staticmethod
     def listar_por_caso(
         db: Session,
@@ -119,6 +126,7 @@ class HistoricoCasoService:
                 db, id_caso
             )
 
+        # Filtra os registros a partir dos casos acessíveis ao usuário.
         historicos = HistoricoCasoService.listar(db, usuario)
 
         return [
@@ -127,6 +135,7 @@ class HistoricoCasoService:
             if historico.id_caso == id_caso
         ]
 
+    # Lista os registros históricos associados a um usuário responsável.
     @staticmethod
     def listar_por_usuario(
         db: Session,
@@ -138,6 +147,7 @@ class HistoricoCasoService:
                 db, id_usuario_responsavel
             )
 
+        # Restringe a consulta aos históricos que o usuário pode acessar.
         historicos = HistoricoCasoService.listar(db, usuario)
 
         return [
@@ -147,19 +157,20 @@ class HistoricoCasoService:
             == id_usuario_responsavel
         ]
 
-
+    # Registra uma ocorrência no histórico do caso jurídico.
     @staticmethod
     def criar(
         db: Session,
         dados,
         usuario: Usuario
     ):
+        # Verifica se o perfil possui permissão para registrar ocorrências.
         if usuario.perfil not in ["Aluno", "Professor", "Gestão"]:
             raise PermissionError(
                 "Você não possui permissão para registrar ocorrências no histórico."
             )
 
-        # Verifica se o caso existe.
+        # Verifica se o caso jurídico informado existe.
         caso = (
             db.query(CasoJuridico)
             .filter(CasoJuridico.id_caso == dados.id_caso)
@@ -171,7 +182,7 @@ class HistoricoCasoService:
                 "Caso jurídico não encontrado."
             )
 
-        # Verifica a responsabilidade do Aluno.
+        # Verifica se o aluno é o responsável pelo caso.
         if usuario.perfil == "Aluno":
             id_aluno = HistoricoCasoService._buscar_id_aluno(
                 db, usuario.id_usuario
@@ -182,7 +193,7 @@ class HistoricoCasoService:
                     "Você não possui permissão para registrar ocorrências neste caso."
                 )
 
-        # Verifica a orientação do Professor.
+        # Verifica se o professor é o orientador do caso.
         elif usuario.perfil == "Professor":
             id_professor = HistoricoCasoService._buscar_id_professor(
                 db, usuario.id_usuario
@@ -193,7 +204,7 @@ class HistoricoCasoService:
                     "Você não possui permissão para registrar ocorrências neste caso."
                 )
 
-        # O responsável é sempre o usuário autenticado.
+        # Define o usuário autenticado como responsável pelo registro.
         historico_dados = dados.model_dump()
         historico_dados["id_usuario_responsavel"] = usuario.id_usuario
 
@@ -202,7 +213,8 @@ class HistoricoCasoService:
                 db,
                 historico_dados
             )
+
+        # Desfaz a transação caso ocorra algum erro durante o registro.
         except Exception:
             db.rollback()
             raise
-

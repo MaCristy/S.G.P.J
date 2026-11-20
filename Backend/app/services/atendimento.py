@@ -5,21 +5,19 @@ from sqlalchemy.exc import IntegrityError
 
 from app.repositories.atendimento import AtendimentoRepository
 from app.repositories.assistido import AssistidoRepository
-from app.schemas.atendimento import AtendimentoCreate
 from app.repositories.aluno import AlunoRepository
 from app.repositories.professor import ProfessorRepository
-from app.repositories.aluno import AlunoRepository
-
-
+from app.schemas.atendimento import AtendimentoCreate
 
 
 class AtendimentoService:
 
+    # Lista todos os atendimentos cadastrados.
     @staticmethod
     def listar(db: Session):
         return AtendimentoRepository.listar(db)
-    
 
+    # Lista os atendimentos vinculados aos casos ou registros do aluno.
     @staticmethod
     def listar_por_aluno(db: Session, id_usuario: int):
         aluno = AlunoRepository.buscar_por_usuario(
@@ -35,7 +33,7 @@ class AtendimentoService:
             id_usuario
         )
 
-
+    # Lista os atendimentos dos casos supervisionados pelo professor.
     @staticmethod
     def listar_por_professor(db: Session, id_usuario: int):
         professor = ProfessorRepository.buscar_por_usuario(
@@ -45,6 +43,7 @@ class AtendimentoService:
         if not professor:
             raise LookupError("Cadastro de professor não encontrado.")
 
+        # Impede a consulta caso o cadastro do professor esteja inativo.
         if professor.situacao != "Ativo":
             raise PermissionError(
                 "O cadastro do professor não está ativo."
@@ -54,6 +53,7 @@ class AtendimentoService:
             db, professor.id_professor
         )
 
+    # Busca um atendimento pelo identificador do cadastro.
     @staticmethod
     def buscar_por_id(db: Session, id_atendimento: int):
         atendimento = AtendimentoRepository.buscar_por_id(
@@ -65,8 +65,7 @@ class AtendimentoService:
 
         return atendimento
 
-    
-
+    # Busca um atendimento verificando se pertence ao aluno ou foi registrado por ele.
     @staticmethod
     def buscar_por_id_e_aluno(
         db: Session,
@@ -94,7 +93,7 @@ class AtendimentoService:
 
         return atendimento
 
-
+    # Busca um atendimento vinculado a um caso supervisionado pelo professor.
     @staticmethod
     def buscar_por_id_e_professor(
         db: Session,
@@ -108,6 +107,7 @@ class AtendimentoService:
         if not professor:
             raise LookupError("Cadastro de professor não encontrado.")
 
+        # Impede o acesso caso o cadastro do professor esteja inativo.
         if professor.situacao != "Ativo":
             raise PermissionError(
                 "O cadastro do professor não está ativo."
@@ -126,6 +126,7 @@ class AtendimentoService:
 
         return atendimento
 
+    # Lista todos os atendimentos vinculados a determinado assistido.
     @staticmethod
     def listar_por_assistido(db: Session, id_assistido: int):
         assistido = AssistidoRepository.buscar_por_id(
@@ -139,7 +140,7 @@ class AtendimentoService:
             db, id_assistido
         )
 
-    
+    # Lista atendimentos de um assistido acessíveis ao aluno.
     @staticmethod
     def listar_por_assistido_e_aluno(
         db: Session,
@@ -167,6 +168,7 @@ class AtendimentoService:
             id_usuario
         )
 
+    # Lista atendimentos de um assistido vinculados aos casos do professor.
     @staticmethod
     def listar_por_assistido_e_professor(
         db: Session,
@@ -187,6 +189,7 @@ class AtendimentoService:
         if not professor:
             raise LookupError("Cadastro de professor não encontrado.")
 
+        # Impede a consulta caso o cadastro do professor esteja inativo.
         if professor.situacao != "Ativo":
             raise PermissionError(
                 "O cadastro do professor não está ativo."
@@ -198,8 +201,7 @@ class AtendimentoService:
             professor.id_professor
         )
 
-
-
+    # Registra um atendimento após validar as permissões e os vínculos informados.
     @staticmethod
     def criar(
         db: Session,
@@ -207,13 +209,13 @@ class AtendimentoService:
         id_usuario_registro: int,
         perfil_usuario: str
     ):
-        # Verifica se o perfil possui permissão para registrar atendimentos.
+        # Permite o registro de atendimentos apenas para Aluno e Gestão.
         if perfil_usuario not in ["Aluno", "Gestão"]:
             raise PermissionError(
                 "Seu perfil não possui permissão para registrar atendimentos."
             )
 
-        # Verifica se o assistido existe.
+        # Verifica se o assistido informado está cadastrado.
         assistido = AssistidoRepository.buscar_por_id(
             db, dados.id_assistido
         )
@@ -221,7 +223,7 @@ class AtendimentoService:
         if not assistido:
             raise LookupError("Assistido não encontrado.")
 
-        # Verifica se o usuário autenticado existe.
+        # Verifica se o usuário responsável pelo registro existe.
         usuario = db.execute(
             text("""
                 SELECT id_usuario
@@ -234,7 +236,7 @@ class AtendimentoService:
         if not usuario:
             raise LookupError("Usuário responsável não encontrado.")
 
-        # Verifica se o caso existe e pertence ao assistido.
+        # Quando informado, verifica se o caso pertence ao assistido.
         if dados.id_caso is not None:
             caso = db.execute(
                 text("""
@@ -254,7 +256,7 @@ class AtendimentoService:
                     "O caso informado não existe ou não pertence ao assistido."
                 )
 
-            # O aluno só pode registrar atendimento em caso sob sua responsabilidade.
+            # Garante que o aluno registre atendimentos somente nos próprios casos.
             if perfil_usuario == "Aluno":
                 aluno = AlunoRepository.buscar_por_usuario(
                     db, id_usuario_registro
@@ -268,6 +270,7 @@ class AtendimentoService:
                         "Você só pode registrar atendimentos nos seus próprios casos."
                     )
 
+        # Persiste o atendimento e confirma a transação no banco.
         try:
             atendimento = AtendimentoRepository.criar(
                 db,
@@ -280,6 +283,7 @@ class AtendimentoService:
 
             return atendimento
 
+        # Desfaz a transação caso ocorra uma violação de integridade.
         except IntegrityError:
             db.rollback()
             raise ValueError(
@@ -287,7 +291,7 @@ class AtendimentoService:
                 "Verifique os relacionamentos informados."
             )
 
+        # Desfaz a transação diante de qualquer outro erro inesperado.
         except Exception:
             db.rollback()
             raise
-

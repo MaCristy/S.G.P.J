@@ -2,25 +2,30 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+# Dependências para acesso ao banco e identificação do usuário autenticado.
 from app.api.deps import get_db, get_current_user
 from app.models.usuario import Usuario
 
+# Schemas utilizados na criação e na resposta dos registros históricos.
 from app.schemas.historico_caso import (
     HistoricoCasoCreate,
     HistoricoCasoResponse
 )
 
+# Serviço responsável pelas regras de negócio do histórico.
 from app.services.historico_caso_service import (
     HistoricoCasoService
 )
 
 
+# Configuração das rotas de histórico dos casos jurídicos.
 router = APIRouter(
     prefix="/historico-casos",
     tags=["Histórico de Casos"]
 )
 
 
+# Lista os registros históricos disponíveis para o usuário autenticado.
 @router.get("/", response_model=list[HistoricoCasoResponse])
 def listar_historico(
     db: Session = Depends(get_db),
@@ -30,11 +35,13 @@ def listar_historico(
         return HistoricoCasoService.listar(
             db, usuario_atual
         )
+
     except LookupError as erro:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(erro)
         )
+
     except PermissionError as erro:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -42,6 +49,7 @@ def listar_historico(
         )
 
 
+# Lista os registros históricos vinculados a um caso específico.
 @router.get(
     "/caso/{id_caso}",
     response_model=list[HistoricoCasoResponse]
@@ -55,11 +63,13 @@ def listar_historico_por_caso(
         return HistoricoCasoService.listar_por_caso(
             db, id_caso, usuario_atual
         )
+
     except LookupError as erro:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(erro)
         )
+
     except PermissionError as erro:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -67,6 +77,7 @@ def listar_historico_por_caso(
         )
 
 
+# Lista os registros históricos associados às ações de um usuário.
 @router.get(
     "/usuario/{id_usuario_responsavel}",
     response_model=list[HistoricoCasoResponse]
@@ -80,11 +91,13 @@ def listar_historico_por_usuario(
         return HistoricoCasoService.listar_por_usuario(
             db, id_usuario_responsavel, usuario_atual
         )
+
     except LookupError as erro:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(erro)
         )
+
     except PermissionError as erro:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -92,6 +105,7 @@ def listar_historico_por_usuario(
         )
 
 
+# Busca um registro histórico pelo seu identificador.
 @router.get(
     "/{id_historico}",
     response_model=HistoricoCasoResponse
@@ -105,11 +119,13 @@ def buscar_historico(
         return HistoricoCasoService.buscar_por_id(
             db, id_historico, usuario_atual
         )
+
     except LookupError as erro:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(erro)
         )
+
     except PermissionError as erro:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -117,6 +133,7 @@ def buscar_historico(
         )
 
 
+# Registra um novo acontecimento no histórico de um caso.
 @router.post(
     "/",
     response_model=HistoricoCasoResponse,
@@ -131,16 +148,19 @@ def criar_historico(
         return HistoricoCasoService.criar(
             db, dados, usuario_atual
         )
+
     except LookupError as erro:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(erro)
         )
+
     except ValueError as erro:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(erro)
         )
+
     except PermissionError as erro:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

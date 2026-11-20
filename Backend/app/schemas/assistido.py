@@ -1,11 +1,16 @@
 
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field
+
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    model_validator
+)
 
 
+# Define os campos compartilhados do cadastro de um assistido.
 class AssistidoBase(BaseModel):
-    """Campos compartilhados do assistido."""
-
     nome_completo: str = Field(
         min_length=1,
         max_length=200
@@ -25,18 +30,17 @@ class AssistidoBase(BaseModel):
     observacoes_administrativas: str | None = None
 
 
+# Define os dados necessários para cadastrar um assistido.
 class AssistidoCreate(AssistidoBase):
-    """Dados necessários para cadastrar um assistido."""
-
     situacao: str = Field(
         default="Ativo",
+        min_length=1,
         max_length=30
     )
 
 
+# Define os campos permitidos na atualização de um assistido.
 class AssistidoUpdate(BaseModel):
-    """Dados permitidos para atualizar um assistido."""
-
     nome_completo: str | None = Field(
         default=None,
         min_length=1,
@@ -60,13 +64,39 @@ class AssistidoUpdate(BaseModel):
 
     situacao: str | None = Field(
         default=None,
+        min_length=1,
         max_length=30
     )
 
+    # Impede valores nulos nos campos obrigatórios do banco.
+    @model_validator(mode="before")
+    @classmethod
+    def validar_campos_obrigatorios(cls, dados):
+        campos_obrigatorios = {
+            "nome_completo",
+            "identificador_cadastral",
+            "contato",
+            "situacao"
+        }
 
+        if isinstance(dados, dict):
+            campos_nulos = [
+                campo
+                for campo in campos_obrigatorios
+                if campo in dados and dados[campo] is None
+            ]
+
+            if campos_nulos:
+                raise ValueError(
+                    "Os seguintes campos não podem receber null: "
+                    f"{', '.join(sorted(campos_nulos))}."
+                )
+
+        return dados
+
+
+# Define os dados retornados pela API ao consultar um assistido.
 class AssistidoResponse(AssistidoBase):
-    """Formato dos dados retornados pela API."""
-
     model_config = ConfigDict(from_attributes=True)
 
     id_assistido: int
