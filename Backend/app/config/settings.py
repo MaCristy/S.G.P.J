@@ -66,6 +66,13 @@ class Settings(BaseSettings):
     PRAZO_ALERTA_DIAS: int = 5
 
     # -------------------------------------------------------------------------
+    # Configurações de armazenamento de documentos
+    # -------------------------------------------------------------------------
+    DOCUMENTOS_DIR: Path = BASE_DIR / "storage" / "documentos"
+    DOCUMENTOS_MAX_SIZE_MB: int = 20
+    DOCUMENTOS_EXTENSAO_PERMITIDA: str = ".pdf"
+
+    # -------------------------------------------------------------------------
     # CORS — Origens autorizadas para o Frontend React (Vite/CRA)
     # -------------------------------------------------------------------------
     CORS_ORIGINS: List[str] = [
