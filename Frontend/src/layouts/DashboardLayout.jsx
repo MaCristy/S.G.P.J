@@ -18,6 +18,7 @@ import {
     CheckCircle2,
 } from 'lucide-react';
 
+// Define as opções disponíveis no menu lateral.
 const menuItems = [
     { label: 'Visão geral', icon: LayoutDashboard, path: '/dashboard/aluno' },
     { label: 'Assistidos', icon: Users, path: '/assistidos' },
@@ -30,14 +31,19 @@ const menuItems = [
 ];
 
 export default function DashboardLayout() {
+    // Controla a abertura e o fechamento do menu lateral.
     const [menuOpen, setMenuOpen] = useState(false);
+
+    // Armazena o texto digitado na pesquisa.
     const [searchTerm, setSearchTerm] = useState('');
 
     const navigate = useNavigate();
     const location = useLocation();
 
+    // Identifica se a rota atual corresponde ao dashboard.
     const isDashboard = location.pathname === '/dashboard/aluno';
 
+    // Realiza a navegação e fecha o menu após a seleção.
     function handleMenuClick(item) {
         if (item.path) {
             navigate(item.path);
@@ -48,6 +54,7 @@ export default function DashboardLayout() {
 
     return (
         <div className="dashboard-layout">
+            {/* Sobreposição utilizada para fechar o menu em telas menores. */}
             {menuOpen && (
                 <button
                     className="sidebar-overlay"
@@ -57,6 +64,7 @@ export default function DashboardLayout() {
                 />
             )}
 
+            {/* Menu lateral de navegação do sistema. */}
             <aside className={`dashboard-sidebar ${menuOpen ? 'sidebar-open' : ''}`}>
                 <div className="dashboard-brand">
                     <span className="dashboard-brand-mark">§</span>
@@ -86,6 +94,7 @@ export default function DashboardLayout() {
                     ))}
                 </nav>
 
+                {/* Informações institucionais e opção de saída. */}
                 <div className="sidebar-bottom">
                     <div className="sidebar-help">
                         <CheckCircle2 size={20} />
@@ -102,8 +111,10 @@ export default function DashboardLayout() {
                 </div>
             </aside>
 
+            {/* Área principal que contém o cabeçalho e o conteúdo das páginas. */}
             <main className="dashboard-main">
                 <header className="dashboard-header">
+                    {/* Botão de controle do menu para dispositivos móveis. */}
                     <button
                         className="mobile-menu"
                         type="button"
@@ -114,6 +125,7 @@ export default function DashboardLayout() {
                         <Menu size={21} />
                     </button>
 
+                    {/* Exibe a pesquisa somente na página inicial do dashboard. */}
                     {isDashboard && (
                         <div className="dashboard-search">
                             <Search size={18} />
@@ -128,6 +140,7 @@ export default function DashboardLayout() {
                     )}
 
                     <div className="dashboard-header-actions">
+                        {/* Botão visual de notificações. */}
                         <button
                             type="button"
                             className="notification-button"
@@ -137,6 +150,7 @@ export default function DashboardLayout() {
                             <span />
                         </button>
 
+                        {/* Identificação provisória do perfil do usuário. */}
                         <div className="dashboard-user">
                             <div className="user-avatar">
                                 <UserCircle size={25} />
@@ -149,6 +163,7 @@ export default function DashboardLayout() {
                     </div>
                 </header>
 
+                {/* Renderiza a página interna e disponibiliza o termo de pesquisa. */}
                 <div className="dashboard-content">
                     <Outlet context={{ searchTerm }} />
                 </div>
