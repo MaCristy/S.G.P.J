@@ -1,25 +1,61 @@
 
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, ShieldCheck } from 'lucide-react';
 
+import { useAuth } from '../contexts/AuthContext.jsx';
+
 export default function LoginPage() {
+    const navigate = useNavigate();
+    const { login, loading } = useAuth();
+
     const [showPassword, setShowPassword] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [message, setMessage] = useState('');
 
-    function handleSubmit(event) {
+    // Valida os dados informados e realiza a autenticação do usuário.
+    async function handleSubmit(event) {
         event.preventDefault();
+        setMessage('');
 
+        // Impede o envio quando os campos obrigatórios não estão preenchidos.
         if (!email.trim() || !password) {
             setMessage('Preencha todos os campos para continuar.');
             return;
         }
 
-        setMessage(
-            'A autenticação será habilitada após a integração com o servidor.'
-        );
+        try {
+            // Envia as credenciais ao backend e recupera os dados do usuário.
+            const usuario = await login(email.trim(), password);
+
+            // Redireciona o usuário conforme o perfil autenticado.
+            if (usuario.perfil === 'Gestão') {
+                navigate('/cadastro');
+                return;
+            }
+
+            if (usuario.perfil === 'Aluno') {
+                navigate('/dashboard/aluno');
+                return;
+            }
+
+            // Informa quando o painel do perfil autenticado ainda não está disponível.
+            setMessage(
+                `Login realizado, mas o painel para o perfil ${usuario.perfil} ainda não está disponível.`
+            );
+        } catch (erro) {
+            // Identifica erros de autenticação relacionados a credenciais inválidas.
+            if (erro.message.includes('(401)')) {
+                setMessage('E-mail ou senha inválidos.');
+                return;
+            }
+
+            // Apresenta uma mensagem para os demais erros de comunicação ou autenticação.
+            setMessage(
+                erro.message || 'Não foi possível realizar o login. Tente novamente.'
+            );
+        }
     }
 
     return (
@@ -40,6 +76,7 @@ export default function LoginPage() {
                         placeholder="Digite seu e-mail"
                         value={email}
                         onChange={(event) => setEmail(event.target.value)}
+                        required
                     />
 
                     <label htmlFor="password">Senha</label>
@@ -50,6 +87,7 @@ export default function LoginPage() {
                             placeholder="Digite sua senha"
                             value={password}
                             onChange={(event) => setPassword(event.target.value)}
+                            required
                         />
 
                         <button
@@ -69,11 +107,17 @@ export default function LoginPage() {
                     </div>
 
                     {message && (
-                        <p className="auth-message" role="status">{message}</p>
+                        <p className="auth-message" role="status">
+                            {message}
+                        </p>
                     )}
 
-                    <button type="submit" className="auth-submit">
-                        Entrar
+                    <button
+                        type="submit"
+                        className="auth-submit"
+                        disabled={loading}
+                    >
+                        {loading ? 'Entrando...' : 'Entrar'}
                     </button>
                 </form>
 
