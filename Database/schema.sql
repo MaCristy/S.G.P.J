@@ -12,7 +12,7 @@
 --     CHECK são ativamente validadas e aplicadas pelo mecanismo do SGBD).
 -- 2. Contexto de Execução: O banco de dados 'sgpj' deve estar previamente criado.
 --    Este script utiliza a instrução 'USE sgpj;' para garantir a seleção correta.
--- 3. Instalação Nova / Master: Contém as 10 tabelas, 10 índices de performance
+-- 3. Instalação Nova / Master: Contém as 11 tabelas, 11 índices de performance
 --    (incluindo 'idx_historico_caso_data') e 5 gatilhos de integridade/auditoria.
 -- =============================================================================
 
@@ -75,7 +75,121 @@ CREATE TABLE professores (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------------------------
--- 4. TABELA: assistidos (Doc. Seção 4.1 e 4.2)
+-- 4. TABELA: solicitacoes_cadastro (Fluxo complementar de cadastro público)
+-- Finalidade: Registrar pedidos de cadastro de alunos e professores, controlar
+-- a análise pela Gestão e preservar o histórico de solicitações rejeitadas.
+-- Requer MySQL 8.0.16+ para aplicação efetiva das restrições CHECK.
+-- -----------------------------------------------------------------------------
+CREATE TABLE solicitacoes_cadastro (
+    id_solicitacao INT AUTO_INCREMENT PRIMARY KEY,
+    id_usuario INT NOT NULL,
+    perfil_solicitado ENUM('Aluno', 'Professor') NOT NULL,
+
+    -- Dados informados pelo solicitante quando o perfil for Aluno.
+    matricula VARCHAR(50) NULL,
+    curso VARCHAR(100) NULL,
+    periodo INT NULL,
+
+    -- Dados informados pelo solicitante quando o perfil for Professor.
+    identificacao_funcional VARCHAR(50) NULL,
+    area_vinculo VARCHAR(100) NULL,
+
+    -- Dados acadêmicos complementados/confirmados pela Gestão na análise.
+    situacao_academica VARCHAR(50) NULL,
+    data_vinculo DATE NULL,
+
+    -- Estado e rastreabilidade da análise.
+    status_solicitacao ENUM('Pendente', 'Aprovada', 'Rejeitada')
+        NOT NULL DEFAULT 'Pendente',
+    data_solicitacao DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    data_analise DATETIME NULL,
+    id_gestor_analise INT NULL,
+    observacao_analise TEXT NULL,
+
+    -- Colunas geradas: permitem várias solicitações históricas encerradas,
+    -- mas impedem mais de uma solicitação pendente por usuário/matrícula/identificação.
+    id_usuario_pendente INT
+        GENERATED ALWAYS AS (
+            CASE WHEN status_solicitacao = 'Pendente' THEN id_usuario ELSE NULL END
+        ) VIRTUAL,
+    matricula_pendente VARCHAR(50)
+        GENERATED ALWAYS AS (
+            CASE
+                WHEN status_solicitacao = 'Pendente'
+                     AND perfil_solicitado = 'Aluno'
+                THEN matricula
+                ELSE NULL
+            END
+        ) VIRTUAL,
+    identificacao_funcional_pendente VARCHAR(50)
+        GENERATED ALWAYS AS (
+            CASE
+                WHEN status_solicitacao = 'Pendente'
+                     AND perfil_solicitado = 'Professor'
+                THEN identificacao_funcional
+                ELSE NULL
+            END
+        ) VIRTUAL,
+
+    CONSTRAINT uq_solicitacao_usuario_pendente
+        UNIQUE (id_usuario_pendente),
+    CONSTRAINT uq_solicitacao_matricula_pendente
+        UNIQUE (matricula_pendente),
+    CONSTRAINT uq_solicitacao_funcional_pendente
+        UNIQUE (identificacao_funcional_pendente),
+
+    CONSTRAINT fk_solicitacoes_usuarios
+        FOREIGN KEY (id_usuario)
+        REFERENCES usuarios (id_usuario)
+        ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT fk_solicitacoes_gestor
+        FOREIGN KEY (id_gestor_analise)
+        REFERENCES usuarios (id_usuario)
+        ON DELETE RESTRICT ON UPDATE CASCADE,
+
+    -- Os campos específicos devem corresponder ao perfil solicitado.
+    CONSTRAINT chk_solicitacao_dados_perfil CHECK (
+        (
+            perfil_solicitado = 'Aluno'
+            AND matricula IS NOT NULL
+            AND curso IS NOT NULL
+            AND periodo IS NOT NULL
+            AND identificacao_funcional IS NULL
+            AND area_vinculo IS NULL
+        )
+        OR
+        (
+            perfil_solicitado = 'Professor'
+            AND identificacao_funcional IS NOT NULL
+            AND matricula IS NULL
+            AND curso IS NULL
+            AND periodo IS NULL
+        )
+    ),
+    CONSTRAINT chk_solicitacao_periodo
+        CHECK (periodo IS NULL OR periodo > 0),
+
+    -- Solicitações pendentes ainda não possuem dados de análise; decisões
+    -- encerradas precisam registrar data e responsável da Gestão.
+    CONSTRAINT chk_solicitacao_analise CHECK (
+        (
+            status_solicitacao = 'Pendente'
+            AND data_analise IS NULL
+            AND id_gestor_analise IS NULL
+        )
+        OR
+        (
+            status_solicitacao IN ('Aprovada', 'Rejeitada')
+            AND data_analise IS NOT NULL
+            AND id_gestor_analise IS NOT NULL
+        )
+    ),
+
+    KEY idx_solicitacoes_status_data (status_solicitacao, data_solicitacao)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------------------------
+-- 5. TABELA: assistidos (Doc. Seção 4.1 e 4.2)
 -- Finalidade: Dados necessários à identificação e ao contato da pessoa atendida.
 -- -----------------------------------------------------------------------------
 CREATE TABLE assistidos (
@@ -91,7 +205,7 @@ CREATE TABLE assistidos (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------------------------
--- 5. TABELA: casos_juridicos (Doc. Seção 4.1 e 4.2)
+-- 6. TABELA: casos_juridicos (Doc. Seção 4.1 e 4.2)
 -- Finalidade: Demanda acompanhada, estado, datas e responsáveis.
 -- Estados sugeridos na documentação: 'Em triagem', 'Aberto', 'Em Andamento', 'Suspenso', 'Encerrado'.
 -- -----------------------------------------------------------------------------
@@ -122,7 +236,7 @@ CREATE TABLE casos_juridicos (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------------------------
--- 6. TABELA: atendimentos (Doc. Seção 4.1 e 4.2)
+-- 7. TABELA: atendimentos (Doc. Seção 4.1 e 4.2)
 -- Finalidade: Registra data, descrição, assistido e usuário que fez o registro.
 -- -----------------------------------------------------------------------------
 CREATE TABLE atendimentos (
@@ -149,7 +263,7 @@ CREATE TABLE atendimentos (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------------------------
--- 7. TABELA: atividades (Doc. Seção 4.1 e 4.2)
+-- 8. TABELA: atividades (Doc. Seção 4.1 e 4.2)
 -- Finalidade: Ação prevista ou realizada dentro de um caso.
 -- Estados sugeridos na documentação: 'Pendente', 'Em andamento', 'Concluída', 'Cancelada'.
 -- -----------------------------------------------------------------------------
@@ -175,7 +289,7 @@ CREATE TABLE atividades (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------------------------
--- 8. TABELA: prazos (Doc. Seção 4.1 e 4.2)
+-- 9. TABELA: prazos (Doc. Seção 4.1 e 4.2)
 -- Finalidade: Data relevante associada a um caso e, opcionalmente, a uma atividade.
 -- Estados sugeridos na documentação: 'Pendente', 'Concluído', 'Vencido'.
 -- -----------------------------------------------------------------------------
@@ -203,7 +317,7 @@ CREATE TABLE prazos (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------------------------
--- 9. TABELA: documentos (Doc. Seção 4.1 e 4.2)
+-- 10. TABELA: documentos (Doc. Seção 4.1 e 4.2)
 -- Finalidade: Metadados e referência de arquivo associado a caso ou atendimento.
 -- Classificação de acesso mantida sem DEFAULT (aguardando homologação da coordenação).
 -- -----------------------------------------------------------------------------
@@ -231,7 +345,7 @@ CREATE TABLE documentos (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------------------------
--- 10. TABELA: historico_caso (Doc. Seção 4.1 e 4.2 - "Histórico / Registro de Ocorrência")
+-- 11. TABELA: historico_caso (Doc. Seção 4.1 e 4.2 - "Histórico / Registro de Ocorrência")
 -- Finalidade: Ocorrências relevantes, usuário responsável, data/hora e referência.
 -- Aplicação mandatória da RN07: registros imutáveis (append-only).
 -- -----------------------------------------------------------------------------

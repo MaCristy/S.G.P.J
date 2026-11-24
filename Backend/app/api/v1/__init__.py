@@ -1,4 +1,3 @@
-
 """
 Roteador v1 — agrega todos os routers da versão 1 da API do S.G.P.J.
 
@@ -6,7 +5,7 @@ Centraliza os módulos da aplicação para que suas rotas sejam
 registradas na instância principal do FastAPI.
 """
 
-# Importa o componente responsável por agrupar as rotas
+# Importa o componente responsável por agrupar as rotas.
 from fastapi import APIRouter
 
 
@@ -16,19 +15,20 @@ from fastapi import APIRouter
 # ============================================================
 
 from app.api.v1.routers import (
-    health,                 # Verificação de funcionamento da API
-    assistidos,             # Cadastro e gerenciamento de assistidos
-    atendimentos,           # Registro e consulta de atendimentos
-    usuario as usuarios,    # Gerenciamento de usuários
-    casos_juridicos,        # Gerenciamento de casos jurídicos
-    aluno as alunos,        # Gerenciamento de alunos
-    professor as professores,  # Gerenciamento de professores
-    atividade as atividades,   # Gerenciamento de atividades
-    documento as documentos,   # Gerenciamento de documentos
-    prazo as prazos,        # Gerenciamento de prazos
-    historico_caso,         # Consulta do histórico dos casos
-    auth,                   # Autenticação e acesso ao sistema
-    dashboard               # Indicadores e informações do dashboard
+    health,                     # Verificação de funcionamento da API
+    assistidos,                 # Cadastro e gerenciamento de assistidos
+    atendimentos,               # Registro e consulta de atendimentos
+    usuario as usuarios,        # Gerenciamento de usuários
+    casos_juridicos,             # Gerenciamento de casos jurídicos
+    aluno as alunos,             # Gerenciamento de alunos
+    professor as professores,    # Gerenciamento de professores
+    atividade as atividades,     # Gerenciamento de atividades
+    documento as documentos,     # Gerenciamento de documentos
+    prazo as prazos,             # Gerenciamento de prazos
+    historico_caso,              # Consulta do histórico dos casos
+    auth,                        # Autenticação e acesso ao sistema
+    dashboard,                   # Indicadores e informações do dashboard
+    solicitacao_cadastro         # Cadastro público e análise de solicitações
 )
 
 
@@ -109,4 +109,9 @@ api_router_v1.include_router(
 # Dashboard: disponibiliza os indicadores de acompanhamento.
 api_router_v1.include_router(
     dashboard.router,
+)
+
+# Solicitações de cadastro: recebe pedidos públicos e permite análise pela Gestão.
+api_router_v1.include_router(
+    solicitacao_cadastro.router,
 )
