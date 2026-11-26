@@ -16,9 +16,12 @@ import {
     Menu,
     LogOut,
     CheckCircle2,
+    UserPlus,
 } from 'lucide-react';
 
-// Define as opções disponíveis no menu lateral.
+import { useAuth } from '../contexts/AuthContext.jsx';
+
+// Define as opções padrão do menu lateral.
 const menuItems = [
     { label: 'Visão geral', icon: LayoutDashboard, path: '/dashboard/aluno' },
     { label: 'Assistidos', icon: Users, path: '/assistidos' },
@@ -30,6 +33,14 @@ const menuItems = [
     { label: 'Histórico', icon: History },
 ];
 
+// Padroniza o perfil para reconhecer nomes com ou sem acentuação.
+function normalizarPerfil(perfil) {
+    return (perfil || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+}
+
 export default function DashboardLayout() {
     // Controla a abertura e o fechamento do menu lateral.
     const [menuOpen, setMenuOpen] = useState(false);
@@ -39,6 +50,46 @@ export default function DashboardLayout() {
 
     const navigate = useNavigate();
     const location = useLocation();
+
+    // Recupera os dados do usuário autenticado.
+    const { user } = useAuth();
+
+    // Identifica o perfil do usuário.
+    const perfil = normalizarPerfil(user?.perfil);
+    const ehGestao = perfil === 'gestao';
+
+    // Define a identificação apresentada no cabeçalho.
+    const identificacaoPerfil = {
+        gestao: {
+            titulo: 'Gestão / Coordenação',
+            subtitulo: 'Área administrativa',
+        },
+        professor: {
+            titulo: 'Professor / Orientador',
+            subtitulo: 'Área docente',
+        },
+        aluno: {
+            titulo: 'Aluno / Estagiário',
+            subtitulo: 'Área do estudante',
+        },
+    };
+
+    const dadosPerfil = identificacaoPerfil[perfil] || {
+        titulo: 'Usuário',
+        subtitulo: 'Área do sistema',
+    };
+
+    // Adiciona a opção administrativa somente para Gestão.
+    const itensMenu = [
+        ...menuItems,
+        ...(ehGestao
+            ? [{
+                label: 'Solicitações de cadastro',
+                icon: UserPlus,
+                path: '/solicitacoes-cadastro',
+            }]
+            : []),
+    ];
 
     // Identifica se a rota atual corresponde ao dashboard.
     const isDashboard = location.pathname === '/dashboard/aluno';
@@ -77,7 +128,7 @@ export default function DashboardLayout() {
                 <div className="sidebar-section-label">MENU PRINCIPAL</div>
 
                 <nav className="dashboard-nav">
-                    {menuItems.map(({ label, icon: Icon, path }) => (
+                    {itensMenu.map(({ label, icon: Icon, path }) => (
                         <a
                             href={path || '#'}
                             key={label}
@@ -150,14 +201,14 @@ export default function DashboardLayout() {
                             <span />
                         </button>
 
-                        {/* Identificação provisória do perfil do usuário. */}
+                        {/* Apresenta a identificação correspondente ao perfil autenticado. */}
                         <div className="dashboard-user">
                             <div className="user-avatar">
                                 <UserCircle size={25} />
                             </div>
                             <div>
-                                <strong>Aluno / Estagiário</strong>
-                                <small>Área do estudante</small>
+                                <strong>{dadosPerfil.titulo}</strong>
+                                <small>{dadosPerfil.subtitulo}</small>
                             </div>
                         </div>
                     </div>

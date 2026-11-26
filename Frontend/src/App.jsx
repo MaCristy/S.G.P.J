@@ -12,24 +12,25 @@ import RecuperarSenhaPage from './pages/RecuperarSenhaPage.jsx';
 
 import DashboardAlunoPage from './pages/DashboardAlunoPage.jsx';
 import AssistidosPage from './pages/AssistidosPage.jsx';
+import SolicitacoesCadastroPage from './pages/SolicitacoesCadastroPage.jsx';
 
 import { useAuth } from './contexts/AuthContext.jsx';
 
-// Controla o acesso às páginas que exigem autenticação.
+// Controla o acesso às páginas que exigem autenticação e permissão.
 function RotaProtegida({ children, perfisPermitidos = [] }) {
   const { isAuthenticated, loading, user } = useAuth();
 
-  // Aguarda a verificação da sessão antes de liberar ou bloquear o acesso.
+  // Aguarda a verificação da sessão do usuário.
   if (loading) {
     return <p>Carregando...</p>;
   }
 
-  // Redireciona para o login quando não existe uma sessão autenticada.
+  // Redireciona visitantes para a tela de login.
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  // Impede o acesso quando o perfil não possui a permissão necessária.
+  // Verifica se o perfil possui autorização para acessar a página.
   if (
     perfisPermitidos.length > 0 &&
     !perfisPermitidos.includes(user?.perfil)
@@ -43,24 +44,28 @@ function RotaProtegida({ children, perfisPermitidos = [] }) {
 export default function App() {
   return (
     <Routes>
-      {/* Páginas públicas e cadastro administrativo. */}
+      {/* Páginas públicas, acessíveis sem autenticação. */}
       <Route element={<AppLayout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/recuperar-senha" element={<RecuperarSenhaPage />} />
-
-        {/* Permite o cadastro de usuários somente ao perfil Gestão. */}
+        <Route path="/cadastro" element={<CadastroPage />} />
         <Route
-          path="/cadastro"
-          element={
-            <RotaProtegida perfisPermitidos={['Gestão']}>
-              <CadastroPage />
-            </RotaProtegida>
-          }
+          path="/recuperar-senha"
+          element={<RecuperarSenhaPage />}
         />
       </Route>
 
-      {/* Páginas internas que exigem autenticação. */}
+      {/* Dashboard do Aluno com seu próprio layout. */}
+      <Route
+        path="/dashboard/aluno"
+        element={
+          <RotaProtegida>
+            <DashboardAlunoPage />
+          </RotaProtegida>
+        }
+      />
+
+      {/* Páginas internas que utilizam o layout compartilhado. */}
       <Route
         element={
           <RotaProtegida>
@@ -69,17 +74,22 @@ export default function App() {
         }
       >
         <Route
-          path="/dashboard/aluno"
-          element={<DashboardAlunoPage />}
-        />
-
-        <Route
           path="/assistidos"
           element={<AssistidosPage />}
         />
+
+        {/* Área administrativa exclusiva da Gestão. */}
+        <Route
+          path="/solicitacoes-cadastro"
+          element={
+            <RotaProtegida perfisPermitidos={['Gestão']}>
+              <SolicitacoesCadastroPage />
+            </RotaProtegida>
+          }
+        />
       </Route>
 
-      {/* Exibe a página de erro para rotas inexistentes. */}
+      {/* Página apresentada para endereços inexistentes. */}
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );

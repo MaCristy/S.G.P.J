@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS solicitacoes_cadastro (
     CONSTRAINT fk_solicitacoes_gestor
         FOREIGN KEY (id_gestor_analise)
         REFERENCES usuarios (id_usuario)
-        ON DELETE RESTRICT ON UPDATE CASCADE,
+        ON DELETE RESTRICT ON UPDATE RESTRICT,
 
     CONSTRAINT chk_solicitacao_dados_perfil CHECK (
         (

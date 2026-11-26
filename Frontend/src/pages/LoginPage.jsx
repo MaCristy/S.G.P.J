@@ -29,12 +29,13 @@ export default function LoginPage() {
             // Envia as credenciais ao backend e recupera os dados do usuário.
             const usuario = await login(email.trim(), password);
 
-            // Redireciona o usuário conforme o perfil autenticado.
+            // Direciona a Gestão para a análise das solicitações de cadastro.
             if (usuario.perfil === 'Gestão') {
-                navigate('/cadastro');
+                navigate('/solicitacoes-cadastro');
                 return;
             }
 
+            // Direciona o Aluno para o painel do estudante.
             if (usuario.perfil === 'Aluno') {
                 navigate('/dashboard/aluno');
                 return;

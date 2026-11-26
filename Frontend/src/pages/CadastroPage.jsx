@@ -10,21 +10,30 @@ import {
     ShieldCheck
 } from 'lucide-react';
 
+import { apiRequest } from '../services/api.js';
+
 export default function CadastroPage() {
     const [perfil, setPerfil] = useState('Aluno');
     const [mostrarSenha, setMostrarSenha] = useState(false);
     const [mostrarConfirmacao, setMostrarConfirmacao] = useState(false);
+    const [enviando, setEnviando] = useState(false);
+    const [sucesso, setSucesso] = useState(false);
 
     const [formulario, setFormulario] = useState({
         nome: '',
         email: '',
         matricula: '',
+        curso: '',
+        periodo: '',
+        identificacaoFuncional: '',
+        areaVinculo: '',
         senha: '',
         confirmarSenha: ''
     });
 
     const [mensagem, setMensagem] = useState('');
 
+    // Atualiza os campos do formulário conforme o usuário digita.
     function atualizarCampo(event) {
         const { name, value } = event.target;
 
@@ -34,10 +43,31 @@ export default function CadastroPage() {
         }));
 
         setMensagem('');
+        setSucesso(false);
     }
 
-    function handleSubmit(event) {
+    // Alterna o perfil e limpa os campos específicos do perfil anterior.
+    function selecionarPerfil(novoPerfil) {
+        setPerfil(novoPerfil);
+        setMensagem('');
+        setSucesso(false);
+
+        setFormulario((anterior) => ({
+            ...anterior,
+            matricula: '',
+            curso: '',
+            periodo: '',
+            identificacaoFuncional: '',
+            areaVinculo: ''
+        }));
+    }
+
+    // Valida os dados e envia a solicitação de cadastro ao backend.
+    async function handleSubmit(event) {
         event.preventDefault();
+
+        setMensagem('');
+        setSucesso(false);
 
         if (
             !formulario.nome.trim() ||
@@ -49,8 +79,30 @@ export default function CadastroPage() {
             return;
         }
 
-        if (perfil === 'Aluno' && !formulario.matricula.trim()) {
-            setMensagem('Informe sua matrícula.');
+        if (perfil === 'Aluno') {
+            if (
+                !formulario.matricula.trim() ||
+                !formulario.curso.trim() ||
+                !formulario.periodo
+            ) {
+                setMensagem('Informe sua matrícula, curso e período atual.');
+                return;
+            }
+
+            if (
+                !Number.isInteger(Number(formulario.periodo)) ||
+                Number(formulario.periodo) < 1
+            ) {
+                setMensagem('Informe um período válido.');
+                return;
+            }
+        }
+
+        if (
+            perfil === 'Professor' &&
+            !formulario.identificacaoFuncional.trim()
+        ) {
+            setMensagem('Informe sua matrícula funcional.');
             return;
         }
 
@@ -64,9 +116,69 @@ export default function CadastroPage() {
             return;
         }
 
-        setMensagem(
-            'Formulário validado. O cadastro será habilitado após a integração com o servidor.'
-        );
+        // Organiza os dados conforme o perfil selecionado.
+        const dadosCadastro = {
+            nome: formulario.nome.trim(),
+            email_institucional: formulario.email.trim(),
+            senha: formulario.senha,
+            confirmar_senha: formulario.confirmarSenha,
+            perfil_solicitado: perfil,
+
+            matricula: perfil === 'Aluno'
+                ? formulario.matricula.trim()
+                : null,
+
+            curso: perfil === 'Aluno'
+                ? formulario.curso.trim()
+                : null,
+
+            periodo: perfil === 'Aluno'
+                ? Number(formulario.periodo)
+                : null,
+
+            identificacao_funcional: perfil === 'Professor'
+                ? formulario.identificacaoFuncional.trim()
+                : null,
+
+            area_vinculo: perfil === 'Professor'
+                ? formulario.areaVinculo.trim() || null
+                : null
+        };
+
+        try {
+            setEnviando(true);
+
+            // Envia a solicitação para o endpoint público de cadastro.
+            await apiRequest('/solicitacoes-cadastro/', {
+                method: 'POST',
+                body: JSON.stringify(dadosCadastro)
+            });
+
+            setSucesso(true);
+            setMensagem(
+                'Solicitação enviada com sucesso! Seu cadastro está pendente de análise pela Gestão / Coordenação. O acesso será liberado após a aprovação.'
+            );
+
+            // Limpa os campos após o envio confirmado pela API.
+            setFormulario({
+                nome: '',
+                email: '',
+                matricula: '',
+                curso: '',
+                periodo: '',
+                identificacaoFuncional: '',
+                areaVinculo: '',
+                senha: '',
+                confirmarSenha: ''
+            });
+        } catch (erro) {
+            // Apresenta a falha sem indicar que a solicitação foi concluída.
+            setMensagem(
+                erro.message || 'Não foi possível enviar sua solicitação. Tente novamente.'
+            );
+        } finally {
+            setEnviando(false);
+        }
     }
 
     return (
@@ -81,17 +193,17 @@ export default function CadastroPage() {
                     <span className="auth-symbol">§</span>
                     <span className="auth-eyebrow">NOVO USUÁRIO</span>
                     <h1>Crie sua conta</h1>
-                    <p>Preencha os dados abaixo para solicitar seu acesso ao S.G.P.J.</p>
+                    <p>
+                        Preencha os dados abaixo para solicitar seu acesso ao S.G.P.J.
+                    </p>
                 </div>
 
                 <div className="profile-selector">
                     <button
                         type="button"
                         className={`profile-option ${perfil === 'Aluno' ? 'selected' : ''}`}
-                        onClick={() => {
-                            setPerfil('Aluno');
-                            setMensagem('');
-                        }}
+                        onClick={() => selecionarPerfil('Aluno')}
+                        disabled={enviando}
                     >
                         <GraduationCap size={20} />
                         <span>Aluno / Estagiário</span>
@@ -100,10 +212,8 @@ export default function CadastroPage() {
                     <button
                         type="button"
                         className={`profile-option ${perfil === 'Professor' ? 'selected' : ''}`}
-                        onClick={() => {
-                            setPerfil('Professor');
-                            setMensagem('');
-                        }}
+                        onClick={() => selecionarPerfil('Professor')}
+                        disabled={enviando}
                     >
                         <BookOpen size={20} />
                         <span>Professor / Orientador</span>
@@ -119,27 +229,83 @@ export default function CadastroPage() {
                         placeholder="Digite seu nome completo"
                         value={formulario.nome}
                         onChange={atualizarCampo}
+                        required
                     />
 
-                    <label htmlFor="cadastro-email">E-mail *</label>
+                    <label htmlFor="cadastro-email">E-mail institucional *</label>
                     <input
                         id="cadastro-email"
                         name="email"
                         type="email"
-                        placeholder="Digite seu e-mail"
+                        placeholder="Digite seu e-mail institucional"
                         value={formulario.email}
                         onChange={atualizarCampo}
+                        required
                     />
 
                     {perfil === 'Aluno' && (
                         <>
-                            <label htmlFor="matricula">Matrícula *</label>
+                            <label htmlFor="matricula">Matrícula acadêmica *</label>
                             <input
                                 id="matricula"
                                 name="matricula"
                                 type="text"
                                 placeholder="Digite sua matrícula"
                                 value={formulario.matricula}
+                                onChange={atualizarCampo}
+                                required
+                            />
+
+                            <label htmlFor="curso">Curso *</label>
+                            <input
+                                id="curso"
+                                name="curso"
+                                type="text"
+                                placeholder="Digite seu curso"
+                                value={formulario.curso}
+                                onChange={atualizarCampo}
+                                required
+                            />
+
+                            <label htmlFor="periodo">Período atual *</label>
+                            <input
+                                id="periodo"
+                                name="periodo"
+                                type="number"
+                                min="1"
+                                step="1"
+                                placeholder="Ex.: 5"
+                                value={formulario.periodo}
+                                onChange={atualizarCampo}
+                                required
+                            />
+                        </>
+                    )}
+
+                    {perfil === 'Professor' && (
+                        <>
+                            <label htmlFor="identificacaoFuncional">
+                                Matrícula funcional *
+                            </label>
+                            <input
+                                id="identificacaoFuncional"
+                                name="identificacaoFuncional"
+                                type="text"
+                                placeholder="Digite sua matrícula funcional"
+                                value={formulario.identificacaoFuncional}
+                                onChange={atualizarCampo}
+                                required
+                            />
+
+                            <label htmlFor="areaVinculo">
+                                Área / vínculo (opcional)
+                            </label>
+                            <input
+                                id="areaVinculo"
+                                name="areaVinculo"
+                                type="text"
+                                placeholder="Ex.: Direito Civil"
+                                value={formulario.areaVinculo}
                                 onChange={atualizarCampo}
                             />
                         </>
@@ -154,6 +320,7 @@ export default function CadastroPage() {
                             placeholder="Mínimo de 8 caracteres"
                             value={formulario.senha}
                             onChange={atualizarCampo}
+                            required
                         />
 
                         <button
@@ -175,6 +342,7 @@ export default function CadastroPage() {
                             placeholder="Digite novamente sua senha"
                             value={formulario.confirmarSenha}
                             onChange={atualizarCampo}
+                            required
                         />
 
                         <button
@@ -191,25 +359,33 @@ export default function CadastroPage() {
                         </button>
                     </div>
 
-                    {perfil === 'Professor' && (
-                        <div className="approval-notice">
-                            <ShieldCheck size={19} />
-                            <p>
-                                <strong>Atenção:</strong> o cadastro de Professor / Orientador
-                                dependerá da aprovação da Gestão / Coordenação antes da
-                                liberação do acesso.
-                            </p>
-                        </div>
-                    )}
+                    <div className="approval-notice">
+                        <ShieldCheck size={19} />
+                        <p>
+                            <strong>Atenção:</strong> sua solicitação será analisada
+                            pela Gestão / Coordenação. O acesso ao sistema somente
+                            será liberado após a aprovação.
+                        </p>
+                    </div>
 
                     {mensagem && (
-                        <p className="auth-message" role="status">
+                        <p
+                            className="auth-message"
+                            role="status"
+                            aria-live="polite"
+                        >
                             {mensagem}
                         </p>
                     )}
 
-                    <button type="submit" className="auth-submit">
-                        Solicitar cadastro
+                    <button
+                        type="submit"
+                        className="auth-submit"
+                        disabled={enviando}
+                    >
+                        {enviando
+                            ? 'Enviando solicitação...'
+                            : 'Solicitar cadastro'}
                     </button>
                 </form>
 
@@ -219,7 +395,9 @@ export default function CadastroPage() {
 
                 <div className="auth-security">
                     <ShieldCheck size={17} />
-                    <span>Seus dados serão tratados conforme as permissões do sistema</span>
+                    <span>
+                        Seus dados serão tratados conforme as permissões do sistema
+                    </span>
                 </div>
             </div>
         </section>

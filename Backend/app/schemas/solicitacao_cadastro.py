@@ -125,6 +125,11 @@ class SolicitacaoCadastroResponse(BaseModel):
 
     id_solicitacao: int
     id_usuario: int
+
+    # Dados pessoais recuperados da tabela de usuários.
+    nome: str
+    email_institucional: EmailStr
+
     perfil_solicitado: str
 
     matricula: str | None = None

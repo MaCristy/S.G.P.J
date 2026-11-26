@@ -2,6 +2,7 @@
 from sqlalchemy.orm import Session
 
 from app.models.solicitacao_cadastro import SolicitacaoCadastro
+from app.models.usuario import Usuario
 
 
 class SolicitacaoCadastroRepository:
@@ -10,11 +11,26 @@ class SolicitacaoCadastroRepository:
     das solicitações de cadastro.
     """
 
+    # Associa o nome e o e-mail do usuário à solicitação consultada.
+    @staticmethod
+    def associar_dados_usuario(solicitacao, nome, email):
+        solicitacao.nome = nome
+        solicitacao.email_institucional = email
+
+        return solicitacao
+
     # Lista as solicitações, permitindo filtrar pelo status.
     @staticmethod
     def listar(db: Session, status_solicitacao: str | None = None):
 
-        consulta = db.query(SolicitacaoCadastro)
+        consulta = db.query(
+            SolicitacaoCadastro,
+            Usuario.nome,
+            Usuario.email_institucional
+        ).join(
+            Usuario,
+            Usuario.id_usuario == SolicitacaoCadastro.id_usuario
+        )
 
         # Aplica o filtro quando um status é informado.
         if status_solicitacao:
@@ -24,18 +40,46 @@ class SolicitacaoCadastroRepository:
             )
 
         # Apresenta primeiro as solicitações mais recentes.
-        return consulta.order_by(
+        resultados = consulta.order_by(
             SolicitacaoCadastro.data_solicitacao.desc(),
             SolicitacaoCadastro.id_solicitacao.desc()
         ).all()
 
-    # Busca uma solicitação pelo seu identificador.
+        # Associa os dados do usuário a cada solicitação.
+        return [
+            SolicitacaoCadastroRepository.associar_dados_usuario(
+                solicitacao,
+                nome,
+                email
+            )
+            for solicitacao, nome, email in resultados
+        ]
+
+    # Busca uma solicitação pelo identificador, incluindo os dados do usuário.
     @staticmethod
     def buscar_por_id(db: Session, id_solicitacao: int):
 
-        return db.query(SolicitacaoCadastro).filter(
+        resultado = db.query(
+            SolicitacaoCadastro,
+            Usuario.nome,
+            Usuario.email_institucional
+        ).join(
+            Usuario,
+            Usuario.id_usuario == SolicitacaoCadastro.id_usuario
+        ).filter(
             SolicitacaoCadastro.id_solicitacao == id_solicitacao
         ).first()
+
+        if not resultado:
+            return None
+
+        solicitacao, nome, email = resultado
+
+        return SolicitacaoCadastroRepository.associar_dados_usuario(
+            solicitacao,
+            nome,
+            email
+        )
 
     # Busca a solicitação pendente de determinado usuário.
     @staticmethod

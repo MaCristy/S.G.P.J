@@ -76,7 +76,7 @@ class SolicitacaoCadastroService:
     def validar_matricula(
         db: Session,
         matricula: str,
-        id_solicitacao_ignorar: int | None = None
+        id_solicitacao: int | None = None
     ):
 
         aluno = AlunoRepository.buscar_por_matricula(
@@ -94,10 +94,7 @@ class SolicitacaoCadastroService:
         )
 
         # Na aprovação, ignora a própria solicitação que está sendo analisada.
-        if (
-            solicitacao
-            and solicitacao.id_solicitacao != id_solicitacao_ignorar
-        ):
+        if solicitacao and solicitacao.id_solicitacao != id_solicitacao:
             raise ValueError(
                 "Já existe uma solicitação pendente utilizando essa matrícula."
             )
@@ -107,7 +104,7 @@ class SolicitacaoCadastroService:
     def validar_identificacao_funcional(
         db: Session,
         identificacao_funcional: str,
-        id_solicitacao_ignorar: int | None = None
+        id_solicitacao: int | None = None
     ):
 
         professor = ProfessorRepository.buscar_por_identificacao(
@@ -127,10 +124,7 @@ class SolicitacaoCadastroService:
         )
 
         # Na aprovação, ignora a própria solicitação que está sendo analisada.
-        if (
-            solicitacao
-            and solicitacao.id_solicitacao != id_solicitacao_ignorar
-        ):
+        if solicitacao and solicitacao.id_solicitacao != id_solicitacao:
             raise ValueError(
                 "Já existe uma solicitação pendente utilizando essa identificação funcional."
             )
@@ -148,6 +142,21 @@ class SolicitacaoCadastroService:
             )
 
             if usuario_existente:
+
+                # Identifica primeiro uma solicitação que ainda está em análise.
+                # Assim, a API informa o motivo correto em vez de tratar o caso
+                # apenas como uma conta já cadastrada.
+                solicitacao_pendente = (
+                    SolicitacaoCadastroRepository.buscar_pendente_por_usuario(
+                        db, usuario_existente.id_usuario
+                    )
+                )
+
+                if solicitacao_pendente:
+                    raise ValueError(
+                        "Já existe uma solicitação de cadastro pendente "
+                        "para esse usuário."
+                    )
 
                 # Somente contas rejeitadas podem solicitar novamente.
                 if usuario_existente.situacao_conta != "Rejeitado":
@@ -337,7 +346,7 @@ class SolicitacaoCadastroService:
                 SolicitacaoCadastroService.validar_matricula(
                     db,
                     solicitacao.matricula,
-                    id_solicitacao_ignorar=solicitacao.id_solicitacao
+                    solicitacao.id_solicitacao
                 )
 
                 aluno = Aluno(
@@ -362,7 +371,7 @@ class SolicitacaoCadastroService:
                 SolicitacaoCadastroService.validar_identificacao_funcional(
                     db,
                     solicitacao.identificacao_funcional,
-                    id_solicitacao_ignorar=solicitacao.id_solicitacao
+                    solicitacao.id_solicitacao
                 )
 
                 professor = Professor(
