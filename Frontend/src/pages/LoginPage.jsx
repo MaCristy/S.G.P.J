@@ -41,7 +41,13 @@ export default function LoginPage() {
                 return;
             }
 
-            // Informa quando o painel do perfil autenticado ainda não está disponível.
+            // Direciona o Professor para seu painel de orientação.
+            if (usuario.perfil === 'Professor') {
+                navigate('/dashboard/professor');
+                return;
+            }
+
+            // Informa quando não existe um painel configurado para o perfil.
             setMessage(
                 `Login realizado, mas o painel para o perfil ${usuario.perfil} ainda não está disponível.`
             );

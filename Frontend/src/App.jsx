@@ -11,8 +11,12 @@ import NotFoundPage from './pages/NotFoundPage.jsx';
 import RecuperarSenhaPage from './pages/RecuperarSenhaPage.jsx';
 
 import DashboardAlunoPage from './pages/DashboardAlunoPage.jsx';
+import DashboardProfessorPage from './pages/DashboardProfessorPage.jsx';
 import AssistidosPage from './pages/AssistidosPage.jsx';
 import SolicitacoesCadastroPage from './pages/SolicitacoesCadastroPage.jsx';
+import AtendimentosPage from './pages/AtendimentosPage.jsx';
+import CasosJuridicosPage from './pages/CasosJuridicosPage.jsx';
+import AtividadesPage from './pages/AtividadesPage.jsx';
 
 import { useAuth } from './contexts/AuthContext.jsx';
 
@@ -20,17 +24,14 @@ import { useAuth } from './contexts/AuthContext.jsx';
 function RotaProtegida({ children, perfisPermitidos = [] }) {
   const { isAuthenticated, loading, user } = useAuth();
 
-  // Aguarda a verificação da sessão do usuário.
   if (loading) {
     return <p>Carregando...</p>;
   }
 
-  // Redireciona visitantes para a tela de login.
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  // Verifica se o perfil possui autorização para acessar a página.
   if (
     perfisPermitidos.length > 0 &&
     !perfisPermitidos.includes(user?.perfil)
@@ -44,7 +45,7 @@ function RotaProtegida({ children, perfisPermitidos = [] }) {
 export default function App() {
   return (
     <Routes>
-      {/* Páginas públicas, acessíveis sem autenticação. */}
+      {/* Páginas públicas. */}
       <Route element={<AppLayout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
@@ -55,17 +56,7 @@ export default function App() {
         />
       </Route>
 
-      {/* Dashboard do Aluno com seu próprio layout. */}
-      <Route
-        path="/dashboard/aluno"
-        element={
-          <RotaProtegida>
-            <DashboardAlunoPage />
-          </RotaProtegida>
-        }
-      />
-
-      {/* Páginas internas que utilizam o layout compartilhado. */}
+      {/* Páginas internas com layout compartilhado. */}
       <Route
         element={
           <RotaProtegida>
@@ -73,12 +64,27 @@ export default function App() {
           </RotaProtegida>
         }
       >
+        {/* Dashboard do Aluno. */}
         <Route
-          path="/assistidos"
-          element={<AssistidosPage />}
+          path="/dashboard/aluno"
+          element={
+            <RotaProtegida perfisPermitidos={['Aluno']}>
+              <DashboardAlunoPage />
+            </RotaProtegida>
+          }
         />
 
-        {/* Área administrativa exclusiva da Gestão. */}
+        {/* Dashboard do Professor. */}
+        <Route
+          path="/dashboard/professor"
+          element={
+            <RotaProtegida perfisPermitidos={['Professor']}>
+              <DashboardProfessorPage />
+            </RotaProtegida>
+          }
+        />
+
+        {/* Área administrativa da Gestão. */}
         <Route
           path="/solicitacoes-cadastro"
           element={
@@ -87,9 +93,33 @@ export default function App() {
             </RotaProtegida>
           }
         />
+
+        {/* Assistidos. */}
+        <Route
+          path="/assistidos"
+          element={<AssistidosPage />}
+        />
+
+        {/* Atendimentos. */}
+        <Route
+          path="/atendimentos"
+          element={<AtendimentosPage />}
+        />
+
+        {/* Casos Jurídicos. */}
+        <Route
+          path="/casos-juridicos"
+          element={<CasosJuridicosPage />}
+        />
+
+        {/* Atividades. */}
+        <Route
+          path="/atividades"
+          element={<AtividadesPage />}
+        />
       </Route>
 
-      {/* Página apresentada para endereços inexistentes. */}
+      {/* Página para endereços inexistentes. */}
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );

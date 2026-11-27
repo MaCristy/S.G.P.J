@@ -23,7 +23,8 @@ export default function AssistidosPage() {
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [error, setError] = useState('');
+    const [pageError, setPageError] = useState('');
+    const [formError, setFormError] = useState('');
 
     const [formData, setFormData] = useState({
         nome: '',
@@ -49,12 +50,12 @@ export default function AssistidosPage() {
     // Carrega os assistidos cadastrados no banco de dados.
     async function carregarAssistidos() {
         try {
-            setError('');
+            setPageError('');
             const dados = await listarAssistidos();
 
             setAssistidos(dados.map(formatarAssistido));
         } catch (erro) {
-            setError(erro.message);
+            setPageError(erro.message);
         } finally {
             setLoading(false);
         }
@@ -84,7 +85,7 @@ export default function AssistidosPage() {
             observacoes: '',
         });
 
-        setError('');
+        setFormError('');
         setModalOpen(true);
     }
 
@@ -99,14 +100,14 @@ export default function AssistidosPage() {
             observacoes: assistido.observacoes,
         });
 
-        setError('');
+        setFormError('');
         setModalOpen(true);
     }
 
     function closeModal() {
         setModalOpen(false);
         setEditingId(null);
-        setError('');
+        setFormError('');
     }
 
     // Envia os dados para a API.
@@ -114,7 +115,7 @@ export default function AssistidosPage() {
         event.preventDefault();
 
         setSaving(true);
-        setError('');
+        setFormError('');
 
         const dadosParaAPI = {
             nome_completo: formData.nome,
@@ -137,7 +138,7 @@ export default function AssistidosPage() {
             await carregarAssistidos();
             closeModal();
         } catch (erro) {
-            setError(erro.message);
+            setFormError(erro.message);
         } finally {
             setSaving(false);
         }
@@ -196,10 +197,10 @@ export default function AssistidosPage() {
                     <div className="assistidos-empty">
                         <p>Carregando assistidos...</p>
                     </div>
-                ) : error && assistidos.length === 0 ? (
+                ) : pageError && assistidos.length === 0 ? (
                     <div className="assistidos-empty" role="alert">
                         <strong>Não foi possível carregar os assistidos.</strong>
-                        <p>{error}</p>
+                        <p>{pageError}</p>
                         <button
                             type="button"
                             className="assistidos-new-button"
@@ -251,8 +252,8 @@ export default function AssistidosPage() {
                 )}
             </section>
 
-            {error && assistidos.length > 0 && (
-                <p role="alert">{error}</p>
+            {pageError && assistidos.length > 0 && (
+                <p role="alert">{pageError}</p>
             )}
 
             {modalOpen && (
@@ -356,8 +357,8 @@ export default function AssistidosPage() {
                                 />
                             </div>
 
-                            {error && (
-                                <p role="alert">{error}</p>
+                            {formError && (
+                                <p role="alert">{formError}</p>
                             )}
 
                             <footer className="assistido-modal-actions">

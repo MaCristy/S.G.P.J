@@ -21,18 +21,6 @@ import {
 
 import { useAuth } from '../contexts/AuthContext.jsx';
 
-// Define as opções padrão do menu lateral.
-const menuItems = [
-    { label: 'Visão geral', icon: LayoutDashboard, path: '/dashboard/aluno' },
-    { label: 'Assistidos', icon: Users, path: '/assistidos' },
-    { label: 'Atendimentos', icon: ClipboardList },
-    { label: 'Casos jurídicos', icon: FolderOpen },
-    { label: 'Atividades', icon: BriefcaseBusiness },
-    { label: 'Prazos', icon: CalendarClock },
-    { label: 'Documentos', icon: FileText },
-    { label: 'Histórico', icon: History },
-];
-
 // Padroniza o perfil para reconhecer nomes com ou sem acentuação.
 function normalizarPerfil(perfil) {
     return (perfil || '')
@@ -58,7 +46,7 @@ export default function DashboardLayout() {
     const perfil = normalizarPerfil(user?.perfil);
     const ehGestao = perfil === 'gestao';
 
-    // Define a identificação apresentada no cabeçalho.
+    // Define os dados de identificação apresentados no cabeçalho.
     const identificacaoPerfil = {
         gestao: {
             titulo: 'Gestão / Coordenação',
@@ -79,20 +67,37 @@ export default function DashboardLayout() {
         subtitulo: 'Área do sistema',
     };
 
-    // Adiciona a opção administrativa somente para Gestão.
-    const itensMenu = [
-        ...menuItems,
-        ...(ehGestao
-            ? [{
-                label: 'Solicitações de cadastro',
-                icon: UserPlus,
-                path: '/solicitacoes-cadastro',
-            }]
-            : []),
+    // Define a página inicial de acordo com o perfil autenticado.
+    const rotaInicial = {
+        gestao: '/solicitacoes-cadastro',
+        professor: '/dashboard/professor',
+        aluno: '/dashboard/aluno',
+    };
+
+    // Define o nome e o destino da primeira opção do menu.
+    const itemInicial = {
+        label: ehGestao ? 'Solicitações de cadastro' : 'Visão geral',
+        icon: ehGestao ? UserPlus : LayoutDashboard,
+        path: rotaInicial[perfil],
+    };
+
+    // Define as opções de navegação compartilhadas entre os perfis.
+    const menuItems = [
+        itemInicial,
+        { label: 'Assistidos', icon: Users, path: '/assistidos' },
+        { label: 'Atendimentos', icon: ClipboardList, path: '/atendimentos' },
+        { label: 'Casos jurídicos', icon: FolderOpen, path: '/casos-juridicos' },
+        { label: 'Atividades', icon: ClipboardList, path: '/atividades' },
+        { label: 'Prazos', icon: CalendarClock },
+        { label: 'Documentos', icon: FileText },
+        { label: 'Histórico', icon: History },
     ];
 
-    // Identifica se a rota atual corresponde ao dashboard.
-    const isDashboard = location.pathname === '/dashboard/aluno';
+    // Identifica se o usuário está em uma das páginas de dashboard.
+    const isDashboard = [
+        '/dashboard/aluno',
+        '/dashboard/professor',
+    ].includes(location.pathname);
 
     // Realiza a navegação e fecha o menu após a seleção.
     function handleMenuClick(item) {
@@ -128,7 +133,7 @@ export default function DashboardLayout() {
                 <div className="sidebar-section-label">MENU PRINCIPAL</div>
 
                 <nav className="dashboard-nav">
-                    {itensMenu.map(({ label, icon: Icon, path }) => (
+                    {menuItems.map(({ label, icon: Icon, path }) => (
                         <a
                             href={path || '#'}
                             key={label}
@@ -176,7 +181,7 @@ export default function DashboardLayout() {
                         <Menu size={21} />
                     </button>
 
-                    {/* Exibe a pesquisa somente na página inicial do dashboard. */}
+                    {/* Exibe a pesquisa somente nas páginas de dashboard. */}
                     {isDashboard && (
                         <div className="dashboard-search">
                             <Search size={18} />

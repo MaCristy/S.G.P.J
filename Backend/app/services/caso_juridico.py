@@ -110,24 +110,13 @@ class CasoJuridicoService:
             if not aluno:
                 raise LookupError("Cadastro de aluno não encontrado.")
 
-            # Verifica se o assistido está vinculado ao aluno.
-            assistido_autorizado = (
-                AssistidoRepository.buscar_por_id_e_aluno(
-                    db,
-                    dados.id_assistido,
-                    aluno.id_aluno
-                )
-            )
-
-            if not assistido_autorizado:
-                raise PermissionError(
-                    "Você só pode cadastrar casos para assistidos "
-                    "vinculados aos seus casos."
-                )
-
-            # O servidor define o responsável e a situação inicial.
+            # O aluno passa a ser o responsável pelo caso.
             dados_caso["id_aluno_responsavel"] = aluno.id_aluno
-            dados_caso["id_professor_orientador"] = None
+
+            # Mantém o professor orientador escolhido pelo aluno.
+            # A validação do professor será realizada abaixo.
+
+            # Todo caso aberto pelo aluno começa em triagem.
             dados_caso["situacao"] = "Em triagem"
             dados_caso["data_encerramento"] = None
 
@@ -155,8 +144,13 @@ class CasoJuridicoService:
                 db, id_professor
             )
 
-            if not professor_orientador:
-                raise LookupError("Professor orientador não encontrado.")
+        if not professor_orientador:
+            raise LookupError("Professor orientador não encontrado.")
+
+        if professor_orientador.situacao != "Ativo":
+            raise ValueError(
+                "O professor orientador selecionado não está ativo."
+            )
 
         try:
             # Cria o caso com os dados já validados.

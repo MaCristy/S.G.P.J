@@ -1,5 +1,5 @@
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, func
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, func
 
 from app.db.base import Base
 
@@ -13,6 +13,13 @@ class Assistido(Base):
         Integer,
         primary_key=True,
         autoincrement=True
+    )
+
+    # Identifica o aluno responsável pelo cadastro, quando aplicável.
+    id_aluno_cadastro = Column(
+        Integer,
+        ForeignKey("alunos.id_aluno"),
+        nullable=True
     )
 
     # Armazena o nome completo do assistido.

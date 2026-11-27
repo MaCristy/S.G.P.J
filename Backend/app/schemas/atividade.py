@@ -45,7 +45,7 @@ class AtividadeBase(BaseModel):
 
 # Define os dados necessários para cadastrar uma atividade.
 class AtividadeCreate(AtividadeBase):
-    pass
+    id_responsavel: int | None = Field(default=None, gt=0)
 
 
 # Define os campos permitidos na atualização de uma atividade.

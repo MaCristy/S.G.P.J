@@ -12,17 +12,13 @@ from app.repositories.professor import ProfessorRepository
 class AssistidoService:
     """Contém as regras de negócio dos assistidos."""
 
-    # Lista todos os assistidos cadastrados.
     @staticmethod
     def listar(db: Session):
         return AssistidoRepository.listar(db)
 
-    # Lista os assistidos vinculados aos casos do aluno.
     @staticmethod
     def listar_por_aluno(db: Session, id_usuario: int):
-        aluno = AlunoRepository.buscar_por_usuario(
-            db, id_usuario
-        )
+        aluno = AlunoRepository.buscar_por_usuario(db, id_usuario)
 
         if not aluno:
             raise LookupError("Cadastro de aluno não encontrado.")
@@ -31,7 +27,6 @@ class AssistidoService:
             db, aluno.id_aluno
         )
 
-    # Lista os assistidos vinculados aos casos supervisionados pelo professor.
     @staticmethod
     def listar_por_professor(db: Session, id_usuario: int):
         professor = ProfessorRepository.buscar_por_usuario(
@@ -41,7 +36,6 @@ class AssistidoService:
         if not professor:
             raise LookupError("Cadastro de professor não encontrado.")
 
-        # Impede a consulta caso o cadastro do professor esteja inativo.
         if professor.situacao != "Ativo":
             raise PermissionError(
                 "O cadastro do professor não está ativo."
@@ -51,7 +45,6 @@ class AssistidoService:
             db, professor.id_professor
         )
 
-    # Busca um assistido pelo identificador do cadastro.
     @staticmethod
     def buscar_por_id(db: Session, id_assistido: int):
         assistido = AssistidoRepository.buscar_por_id(
@@ -63,7 +56,6 @@ class AssistidoService:
 
         return assistido
 
-    # Busca um assistido somente quando está vinculado a um caso do aluno.
     @staticmethod
     def buscar_por_id_e_aluno(
         db: Session,
@@ -85,12 +77,11 @@ class AssistidoService:
 
         if not assistido:
             raise LookupError(
-                "Assistido não encontrado ou não vinculado aos seus casos."
+                "Assistido não encontrado ou sem vínculo com você."
             )
 
         return assistido
 
-    # Busca um assistido somente quando está vinculado a um caso supervisionado pelo professor.
     @staticmethod
     def buscar_por_id_e_professor(
         db: Session,
@@ -104,7 +95,6 @@ class AssistidoService:
         if not professor:
             raise LookupError("Cadastro de professor não encontrado.")
 
-        # Impede o acesso caso o cadastro do professor esteja inativo.
         if professor.situacao != "Ativo":
             raise PermissionError(
                 "O cadastro do professor não está ativo."
@@ -123,9 +113,30 @@ class AssistidoService:
 
         return assistido
 
-    # Cadastra um assistido após verificar a existência de identificador duplicado.
+    # Cadastra o assistido e identifica o aluno responsável, quando aplicável.
     @staticmethod
-    def criar(db: Session, dados: AssistidoCreate):
+    def criar(
+        db: Session,
+        dados: AssistidoCreate,
+        usuario_atual
+    ):
+        id_aluno_cadastro = None
+
+        if usuario_atual.perfil == "Aluno":
+            aluno = AlunoRepository.buscar_por_usuario(
+                db, usuario_atual.id_usuario
+            )
+
+            if not aluno:
+                raise LookupError("Cadastro de aluno não encontrado.")
+
+            id_aluno_cadastro = aluno.id_aluno
+
+        elif usuario_atual.perfil != "Gestão":
+            raise PermissionError(
+                "Você não possui permissão para cadastrar assistidos."
+            )
+
         existente = AssistidoRepository.buscar_por_identificador(
             db,
             dados.identificador_cadastral
@@ -136,44 +147,70 @@ class AssistidoService:
                 "Já existe um assistido com esse identificador cadastral."
             )
 
-        # Persiste o cadastro e confirma a transação.
         try:
-            assistido = AssistidoRepository.criar(db, dados)
+            assistido = AssistidoRepository.criar(
+                db,
+                dados,
+                id_aluno_cadastro=id_aluno_cadastro
+            )
+
             db.commit()
             db.refresh(assistido)
 
             return assistido
 
-        # Desfaz a transação caso ocorra uma violação de integridade.
         except IntegrityError:
             db.rollback()
             raise ValueError(
                 "Não foi possível cadastrar. Verifique se o identificador cadastral já existe."
             )
 
-        # Desfaz a transação diante de qualquer outro erro inesperado.
         except Exception:
             db.rollback()
             raise
 
-    # Atualiza os dados de um assistido, verificando campos obrigatórios e duplicidades.
+    # Atualiza os dados conforme as permissões do perfil.
     @staticmethod
     def atualizar(
         db: Session,
         id_assistido: int,
-        dados: AssistidoUpdate
+        dados: AssistidoUpdate,
+        usuario_atual
     ):
-        assistido = AssistidoRepository.buscar_por_id(
-            db, id_assistido
-        )
+        if usuario_atual.perfil == "Gestão":
+            assistido = AssistidoRepository.buscar_por_id(
+                db, id_assistido
+            )
+
+        elif usuario_atual.perfil == "Aluno":
+            aluno = AlunoRepository.buscar_por_usuario(
+                db, usuario_atual.id_usuario
+            )
+
+            if not aluno:
+                raise LookupError("Cadastro de aluno não encontrado.")
+
+            assistido = AssistidoRepository.buscar_por_id_e_aluno(
+                db,
+                id_assistido,
+                aluno.id_aluno
+            )
+
+            if not assistido:
+                raise PermissionError(
+                    "Você só pode atualizar assistidos cadastrados por você ou vinculados aos seus casos."
+                )
+
+        else:
+            raise PermissionError(
+                "Você não possui permissão para atualizar assistidos."
+            )
 
         if not assistido:
             raise LookupError("Assistido não encontrado.")
 
-        # Obtém somente os campos enviados na solicitação de atualização.
         dados_atualizados = dados.model_dump(exclude_unset=True)
 
-        # Impede que campos obrigatórios sejam atualizados com valor nulo.
         campos_obrigatorios = [
             "nome_completo",
             "identificador_cadastral",
@@ -187,7 +224,6 @@ class AssistidoService:
                     f"O campo '{campo}' não pode ficar vazio."
                 )
 
-        # Verifica se o novo identificador já pertence a outro assistido.
         novo_identificador = dados_atualizados.get(
             "identificador_cadastral"
         )
@@ -206,7 +242,6 @@ class AssistidoService:
                     "Esse identificador cadastral já pertence a outro assistido."
                 )
 
-        # Persiste as alterações e atualiza os dados do objeto.
         try:
             assistido = AssistidoRepository.atualizar(
                 db,
@@ -219,14 +254,12 @@ class AssistidoService:
 
             return assistido
 
-        # Desfaz a transação caso ocorra uma violação de integridade.
         except IntegrityError:
             db.rollback()
             raise ValueError(
                 "Não foi possível atualizar. Verifique os dados informados."
             )
 
-        # Desfaz a transação diante de qualquer outro erro inesperado.
         except Exception:
             db.rollback()
             raise
