@@ -1,4 +1,5 @@
 
+import { useEffect, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import {
     ClipboardList,
@@ -8,95 +9,108 @@ import {
     CheckCircle2,
 } from 'lucide-react';
 
-const indicators = [
-    {
-        title: 'Casos atribuídos',
-        value: '08',
-        description: 'Casos sob sua responsabilidade',
-        icon: FolderOpen,
-        color: 'blue',
-    },
-    {
-        title: 'Atividades pendentes',
-        value: '05',
-        description: 'Atividades aguardando conclusão',
-        icon: ClipboardList,
-        color: 'yellow',
-    },
-    {
-        title: 'Prazos próximos',
-        value: '03',
-        description: 'Prazos que exigem atenção',
-        icon: Clock3,
-        color: 'orange',
-    },
-    {
-        title: 'Atividades concluídas',
-        value: '12',
-        description: 'Atividades finalizadas',
-        icon: CheckCircle2,
-        color: 'green',
-    },
-];
+import { buscarDashboardAluno } from '../services/dashboardService';
 
-const activities = [
-    {
-        title: 'Análise de documentação',
-        caseName: 'Caso demonstrativo nº 001',
-        date: '12/11/2026',
-        status: 'Em andamento',
-        statusClass: 'in-progress',
-    },
-    {
-        title: 'Elaboração de relatório',
-        caseName: 'Caso demonstrativo nº 002',
-        date: '14/11/2026',
-        status: 'Pendente',
-        statusClass: 'pending',
-    },
-    {
-        title: 'Revisão de atendimento',
-        caseName: 'Caso demonstrativo nº 003',
-        date: '16/11/2026',
-        status: 'Concluída',
-        statusClass: 'completed',
-    },
-];
+function formatarData(data) {
+    if (!data) return 'Sem data';
 
-const deadlines = [
-    {
-        day: '14',
-        month: 'NOV',
-        title: 'Entrega de relatório',
-        description: 'Caso demonstrativo nº 002',
-    },
-    {
-        day: '17',
-        month: 'NOV',
-        title: 'Revisão de documentação',
-        description: 'Caso demonstrativo nº 001',
-    },
-    {
-        day: '20',
-        month: 'NOV',
-        title: 'Atualização de andamento',
-        description: 'Caso demonstrativo nº 003',
-    },
-];
+    const dataLocal = new Date(`${data}T00:00:00`);
+
+    if (Number.isNaN(dataLocal.getTime())) return 'Sem data';
+
+    return dataLocal.toLocaleDateString('pt-BR');
+}
+
+function formatarDataExtenso(data = new Date()) {
+    return data.toLocaleDateString('pt-BR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+    });
+}
+
+function classeSituacao(situacao) {
+    const status = situacao?.toLowerCase();
+
+    if (status === 'concluída' || status === 'concluido') {
+        return 'completed';
+    }
+
+    if (status === 'em andamento') {
+        return 'in-progress';
+    }
+
+    return 'pending';
+}
 
 export default function DashboardAlunoPage() {
-    // Recebe o termo de pesquisa do cabeçalho principal.
     const outletContext = useOutletContext();
     const searchTerm = outletContext?.searchTerm ?? '';
 
-    const filteredActivities = activities.filter((activity) =>
-        `${activity.title} ${activity.caseName} ${activity.status}`
+    const [dashboard, setDashboard] = useState(null);
+    const [carregando, setCarregando] = useState(true);
+    const [erro, setErro] = useState('');
+
+    useEffect(() => {
+        async function carregarDashboard() {
+            try {
+                setCarregando(true);
+                setErro('');
+
+                const dados = await buscarDashboardAluno();
+                setDashboard(dados);
+            } catch (error) {
+                setErro(error.message || 'Não foi possível carregar a visão geral.');
+            } finally {
+                setCarregando(false);
+            }
+        }
+
+        carregarDashboard();
+    }, []);
+
+    const indicadores = [
+        {
+            title: 'Casos atribuídos',
+            value: dashboard?.total_casos ?? 0,
+            description: 'Casos sob sua responsabilidade',
+            icon: FolderOpen,
+            color: 'blue',
+        },
+        {
+            title: 'Atividades pendentes',
+            value: dashboard?.total_atividades_pendentes ?? 0,
+            description: 'Atividades aguardando conclusão',
+            icon: ClipboardList,
+            color: 'yellow',
+        },
+        {
+            title: 'Prazos próximos',
+            value: dashboard?.total_prazos_proximos ?? 0,
+            description: 'Prazos que exigem atenção',
+            icon: Clock3,
+            color: 'orange',
+        },
+        {
+            title: 'Atividades concluídas',
+            value: dashboard?.total_atividades_concluidas ?? 0,
+            description: 'Atividades finalizadas',
+            icon: CheckCircle2,
+            color: 'green',
+        },
+    ];
+
+    const atividades = dashboard?.atividades_recentes ?? [];
+    const prazos = dashboard?.prazos_proximos ?? [];
+
+    const atividadesFiltradas = atividades.filter((atividade) =>
+        `${atividade.titulo} ${atividade.codigo_caso} ${atividade.situacao}`
             .toLowerCase()
             .includes(searchTerm.toLowerCase())
     );
 
-    const filteredDeadlines = deadlines.filter((deadline) =>
-        `${deadline.title} ${deadline.description} ${deadline.day} ${deadline.month}`
+    const prazosFiltrados = prazos.filter((prazo) =>
+        `${prazo.descricao} ${prazo.codigo_caso} ${prazo.data_limite}`
             .toLowerCase()
             .includes(searchTerm.toLowerCase())
     );
@@ -114,12 +128,20 @@ export default function DashboardAlunoPage() {
 
                 <div className="dashboard-date">
                     <CalendarClock size={18} />
-                    <span>12 de novembro de 2026</span>
+                    <span>{formatarDataExtenso()}</span>
                 </div>
             </section>
 
+            {erro && (
+                <div className="dashboard-demo-notice">
+                    <p>
+                        <strong>Não foi possível carregar os dados:</strong> {erro}
+                    </p>
+                </div>
+            )}
+
             <section className="indicator-grid">
-                {indicators.map(({ title, value, description, icon: Icon, color }) => (
+                {indicadores.map(({ title, value, description, icon: Icon, color }) => (
                     <article className="indicator-card" key={title}>
                         <div className={`indicator-icon ${color}`}>
                             <Icon size={21} />
@@ -127,7 +149,7 @@ export default function DashboardAlunoPage() {
 
                         <div className="indicator-info">
                             <span>{title}</span>
-                            <strong>{value}</strong>
+                            <strong>{carregando ? '...' : value}</strong>
                             <small>{description}</small>
                         </div>
                     </article>
@@ -148,20 +170,23 @@ export default function DashboardAlunoPage() {
                     </div>
 
                     <div className="activity-list">
-                        {filteredActivities.length > 0 ? (
-                            filteredActivities.map((activity) => (
-                                <div className="activity-row" key={activity.title}>
+                        {carregando ? (
+                            <p className="search-empty">Carregando atividades...</p>
+                        ) : atividadesFiltradas.length > 0 ? (
+                            atividadesFiltradas.map((atividade) => (
+                                <div className="activity-row" key={atividade.id_atividade}>
                                     <div className="activity-symbol">
                                         <ClipboardList size={19} />
                                     </div>
 
                                     <div className="activity-description">
-                                        <strong>{activity.title}</strong>
-                                        <small>{activity.caseName}</small>
+                                        <strong>{atividade.titulo}</strong>
+                                        <small>{atividade.codigo_caso}</small>
+                                        <small>{formatarData(atividade.data_prevista)}</small>
                                     </div>
 
-                                    <span className={`activity-status ${activity.statusClass}`}>
-                                        {activity.status}
+                                    <span className={`activity-status ${classeSituacao(atividade.situacao)}`}>
+                                        {atividade.situacao}
                                     </span>
                                 </div>
                             ))
@@ -184,37 +209,57 @@ export default function DashboardAlunoPage() {
                     </div>
 
                     <div className="deadline-list">
-                        {filteredDeadlines.length > 0 ? (
-                            filteredDeadlines.map((deadline) => (
-                                <div className="deadline-row" key={deadline.title}>
-                                    <div className="deadline-date">
-                                        <strong>{deadline.day}</strong>
-                                        <span>{deadline.month}</span>
-                                    </div>
+                        {carregando ? (
+                            <p className="search-empty">Carregando prazos...</p>
+                        ) : prazosFiltrados.length > 0 ? (
+                            prazosFiltrados.map((prazo) => {
+                                const data = prazo.data_limite
+                                    ? new Date(`${prazo.data_limite}T00:00:00`)
+                                    : null;
 
-                                    <div>
-                                        <strong>{deadline.title}</strong>
-                                        <small>{deadline.description}</small>
+                                return (
+                                    <div className="deadline-row" key={prazo.id_prazo}>
+                                        <div className="deadline-date">
+                                            <strong>
+                                                {data && !Number.isNaN(data.getTime())
+                                                    ? String(data.getDate()).padStart(2, '0')
+                                                    : '--'}
+                                            </strong>
+                                            <span>
+                                                {data && !Number.isNaN(data.getTime())
+                                                    ? data.toLocaleDateString('pt-BR', {
+                                                        month: 'short',
+                                                    }).replace('.', '').toUpperCase()
+                                                    : '---'}
+                                            </span>
+                                        </div>
+
+                                        <div>
+                                            <strong>{prazo.descricao}</strong>
+                                            <small>{prazo.codigo_caso}</small>
+                                            <small>{formatarData(prazo.data_limite)}</small>
+                                        </div>
                                     </div>
-                                </div>
-                            ))
+                                );
+                            })
                         ) : (
                             <p className="search-empty">
-                                Nenhum prazo encontrado.
+                                Nenhum prazo próximo encontrado.
                             </p>
                         )}
                     </div>
                 </article>
             </section>
 
-            <div className="dashboard-demo-notice">
-                <CheckCircle2 size={20} />
-                <p>
-                    <strong>Ambiente demonstrativo:</strong> os indicadores, atividades
-                    e prazos apresentados são dados ilustrativos. As informações reais
-                    serão carregadas após a integração com o Backend.
-                </p>
-            </div>
+            {!carregando && !erro && (
+                <div className="dashboard-demo-notice">
+                    <CheckCircle2 size={20} />
+                    <p>
+                        <strong>Dados atualizados:</strong> as informações desta
+                        visão geral são carregadas a partir dos registros do sistema.
+                    </p>
+                </div>
+            )}
         </>
     );
 }

@@ -89,8 +89,8 @@ export default function DashboardLayout() {
         { label: 'Casos jurídicos', icon: FolderOpen, path: '/casos-juridicos' },
         { label: 'Atividades', icon: ClipboardList, path: '/atividades' },
         { label: 'Prazos', icon: CalendarClock, path: '/prazos' },
-        { label: 'Documentos', icon: FileText },
-        { label: 'Histórico', icon: History },
+        { label: 'Documentos', icon: FileText, path: '/documentos' },
+        { label: 'Histórico', icon: History, path: '/historico' },
     ];
 
     // Identifica se o usuário está em uma das páginas de dashboard.
@@ -212,8 +212,8 @@ export default function DashboardLayout() {
                                 <UserCircle size={25} />
                             </div>
                             <div>
-                                <strong>{dadosPerfil.titulo}</strong>
-                                <small>{dadosPerfil.subtitulo}</small>
+                                <strong>{user?.nome || 'Usuário'}</strong>
+                                <small>{dadosPerfil.titulo}</small>
                             </div>
                         </div>
                     </div>

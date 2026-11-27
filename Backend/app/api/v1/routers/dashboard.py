@@ -6,7 +6,11 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, check_role
 from app.services.dashboard_service import DashboardService
-from app.schemas.dashboard import DashboardResumoResponse
+from app.schemas.dashboard import (
+    DashboardResumoResponse,
+    DashboardAlunoResponse,
+    DashboardProfessorResponse
+)
 
 
 # Configuração das rotas do dashboard.
@@ -54,3 +58,56 @@ def obter_resumo_dashboard(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(erro)
         )
+
+
+# ============================================================
+# VISÃO GERAL DO ALUNO
+# ============================================================
+
+@router.get(
+    "/aluno",
+    response_model=DashboardAlunoResponse,
+    status_code=status.HTTP_200_OK
+)
+def obter_dashboard_aluno(
+    db: Session = Depends(get_db),
+    usuario=Depends(check_role("Aluno"))
+):
+    try:
+        return DashboardService.obter_resumo_aluno(
+            db=db,
+            usuario=usuario
+        )
+
+    except ValueError as erro:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(erro)
+        )
+
+
+# ============================================================
+# VISÃO GERAL DO PROFESSOR
+# ============================================================
+
+@router.get(
+    "/professor",
+    response_model=DashboardProfessorResponse,
+    status_code=status.HTTP_200_OK
+)
+def obter_dashboard_professor(
+    db: Session = Depends(get_db),
+    usuario=Depends(check_role("Professor"))
+):
+    try:
+        return DashboardService.obter_resumo_professor(
+            db=db,
+            usuario=usuario
+        )
+
+    except ValueError as erro:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(erro)
+        )
+

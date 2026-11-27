@@ -68,3 +68,50 @@ class DashboardResumoResponse(BaseModel):
     itens_atencao: list[ItemAtencaoDashboard] = Field(
         default_factory=list
     )
+
+
+# ============================================================
+# DADOS EXIBIDOS NA VISÃO GERAL DO ALUNO E DO PROFESSOR
+# ============================================================
+
+class AtividadeDashboardItem(BaseModel):
+    id_atividade: int
+    titulo: str
+    codigo_caso: str
+    situacao: str
+    data_prevista: date | None = None
+
+
+class PrazoDashboardItem(BaseModel):
+    id_prazo: int
+    descricao: str
+    codigo_caso: str
+    situacao: str
+    data_limite: date
+
+
+class DashboardAlunoResponse(BaseModel):
+    total_casos: int
+    total_atividades_pendentes: int
+    total_prazos_proximos: int
+    total_atividades_concluidas: int
+    atividades_recentes: list[AtividadeDashboardItem] = Field(
+        default_factory=list
+    )
+    prazos_proximos: list[PrazoDashboardItem] = Field(
+        default_factory=list
+    )
+
+
+class DashboardProfessorResponse(BaseModel):
+    total_casos: int
+    total_alunos: int
+    total_atividades: int
+    total_prazos_proximos: int
+    atividades_recentes: list[AtividadeDashboardItem] = Field(
+        default_factory=list
+    )
+    prazos_proximos: list[PrazoDashboardItem] = Field(
+        default_factory=list
+    )
+

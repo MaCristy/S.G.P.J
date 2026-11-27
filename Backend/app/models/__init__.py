@@ -21,6 +21,7 @@ from app.models.historico_caso import HistoricoCaso
 # Importa o model responsável pelas solicitações públicas de cadastro.
 from app.models.solicitacao_cadastro import SolicitacaoCadastro 
 
+from app.models.notificacao import Notificacao
 
 # Define os models disponibilizados em importações do pacote.
 __all__ = [
@@ -34,5 +35,6 @@ __all__ = [
     "Documento",
     "Prazo",
     "HistoricoCaso",
-    "SolicitacaoCadastro"
+    "SolicitacaoCadastro",
+    "Notificacao"
 ]

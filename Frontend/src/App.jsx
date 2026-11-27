@@ -18,6 +18,8 @@ import AtendimentosPage from './pages/AtendimentosPage.jsx';
 import CasosJuridicosPage from './pages/CasosJuridicosPage.jsx';
 import AtividadesPage from './pages/AtividadesPage.jsx';
 import PrazosPage from './pages/PrazosPage.jsx';
+import HistoricoPage from './pages/HistoricoPage.jsx';
+import DocumentosPage from './pages/DocumentosPage.jsx';
 
 import { useAuth } from './contexts/AuthContext.jsx';
 
@@ -123,6 +125,18 @@ export default function App() {
         <Route
           path="/prazos"
           element={<PrazosPage />}
+        />
+
+        {/* Histórico. */}
+        <Route
+          path="/historico"
+          element={<HistoricoPage />}
+        />
+
+        {/* Documentos. */}
+        <Route
+          path="/documentos"
+          element={<DocumentosPage />}
         />
       </Route>
 

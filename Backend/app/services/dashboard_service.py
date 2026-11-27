@@ -4,13 +4,20 @@ from datetime import date
 from sqlalchemy.orm import Session
 
 from app.repositories.dashboard_repository import DashboardRepository
+from app.models.aluno import Aluno
+from app.models.professor import Professor
+from app.models.usuario import Usuario
 
 from app.schemas.dashboard import (
     PeriodoDashboard,
     IndicadoresDashboard,
     DistribuicaoDashboard,
     ItemAtencaoDashboard,
-    DashboardResumoResponse
+    DashboardResumoResponse,
+    DashboardAlunoResponse,
+    DashboardProfessorResponse,
+    AtividadeDashboardItem,
+    PrazoDashboardItem
 )
 
 
@@ -150,3 +157,145 @@ class DashboardService:
 
             itens_atencao=itens_atencao
         )
+
+
+    # ============================================================
+    # RESUMO DA VISÃO GERAL DO ALUNO
+    # ============================================================
+
+    @staticmethod
+    def obter_resumo_aluno(
+        db: Session,
+        usuario: Usuario
+    ) -> DashboardAlunoResponse:
+
+        aluno = (
+            db.query(Aluno)
+            .filter(Aluno.id_usuario == usuario.id_usuario)
+            .first()
+        )
+
+        if not aluno:
+            raise ValueError(
+                "Cadastro acadêmico do aluno não encontrado."
+            )
+
+        id_aluno = aluno.id_aluno
+
+        atividades = (
+            DashboardRepository.obter_atividades_recentes_por_aluno(
+                db, id_aluno
+            )
+        )
+
+        prazos = (
+            DashboardRepository.obter_prazos_proximos_por_aluno(
+                db, id_aluno
+            )
+        )
+
+        return DashboardAlunoResponse(
+            total_casos=(
+                DashboardRepository.obter_total_casos_por_aluno(
+                    db, id_aluno
+                )
+            ),
+            total_atividades_pendentes=(
+                DashboardRepository
+                .obter_total_atividades_pendentes_por_aluno(
+                    db, id_aluno
+                )
+            ),
+            total_atividades_concluidas=(
+                DashboardRepository
+                .obter_total_atividades_concluidas_por_aluno(
+                    db, id_aluno
+                )
+            ),
+            total_prazos_proximos=(
+                DashboardRepository
+                .obter_total_prazos_proximos_por_aluno(
+                    db, id_aluno
+                )
+            ),
+            atividades_recentes=[
+                AtividadeDashboardItem(**item)
+                for item in atividades
+            ],
+            prazos_proximos=[
+                PrazoDashboardItem(**item)
+                for item in prazos
+            ]
+        )
+
+    # ============================================================
+    # RESUMO DA VISÃO GERAL DO PROFESSOR
+    # ============================================================
+
+    @staticmethod
+    def obter_resumo_professor(
+        db: Session,
+        usuario: Usuario
+    ) -> DashboardProfessorResponse:
+
+        professor = (
+            db.query(Professor)
+            .filter(
+                Professor.id_usuario == usuario.id_usuario,
+                Professor.situacao == "Ativo"
+            )
+            .first()
+        )
+
+        if not professor:
+            raise ValueError(
+                "Cadastro ativo do professor não encontrado."
+            )
+
+        id_professor = professor.id_professor
+
+        atividades = (
+            DashboardRepository
+            .obter_atividades_recentes_por_professor(
+                db, id_professor
+            )
+        )
+
+        prazos = (
+            DashboardRepository.obter_prazos_proximos_por_professor(
+                db, id_professor
+            )
+        )
+
+        return DashboardProfessorResponse(
+            total_casos=(
+                DashboardRepository.obter_total_casos_por_professor(
+                    db, id_professor
+                )
+            ),
+            total_alunos=(
+                DashboardRepository.obter_total_alunos_por_professor(
+                    db, id_professor
+                )
+            ),
+            total_atividades=(
+                DashboardRepository.obter_total_atividades_por_professor(
+                    db, id_professor
+                )
+            ),
+            total_prazos_proximos=(
+                DashboardRepository
+                .obter_total_prazos_proximos_por_professor(
+                    db, id_professor
+                )
+            ),
+            atividades_recentes=[
+                AtividadeDashboardItem(**item)
+                for item in atividades
+            ],
+            prazos_proximos=[
+                PrazoDashboardItem(**item)
+                for item in prazos
+            ]
+        )
+

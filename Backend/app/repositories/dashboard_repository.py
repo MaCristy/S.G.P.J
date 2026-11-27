@@ -377,3 +377,259 @@ class DashboardRepository:
             }
             for atividade in resultados
         ]
+
+
+    # ============================================================
+    # CONSULTAS ESPECÍFICAS PARA O DASHBOARD DO ALUNO
+    # ============================================================
+
+    @staticmethod
+    def obter_total_casos_por_aluno(db: Session, id_aluno: int) -> int:
+        return DashboardRepository._contar(
+            db.query(func.count(CasoJuridico.id_caso))
+            .filter(CasoJuridico.id_aluno_responsavel == id_aluno)
+        )
+
+    @staticmethod
+    def obter_total_atividades_pendentes_por_aluno(
+        db: Session, id_aluno: int
+    ) -> int:
+        return DashboardRepository._contar(
+            db.query(func.count(Atividade.id_atividade))
+            .join(CasoJuridico, CasoJuridico.id_caso == Atividade.id_caso)
+            .filter(
+                CasoJuridico.id_aluno_responsavel == id_aluno,
+                Atividade.situacao.in_(["Pendente", "Em andamento"])
+            )
+        )
+
+    @staticmethod
+    def obter_total_atividades_concluidas_por_aluno(
+        db: Session, id_aluno: int
+    ) -> int:
+        return DashboardRepository._contar(
+            db.query(func.count(Atividade.id_atividade))
+            .join(CasoJuridico, CasoJuridico.id_caso == Atividade.id_caso)
+            .filter(
+                CasoJuridico.id_aluno_responsavel == id_aluno,
+                Atividade.situacao == "Concluída"
+            )
+        )
+
+    @staticmethod
+    def obter_total_prazos_proximos_por_aluno(
+        db: Session, id_aluno: int
+    ) -> int:
+        hoje = date.today()
+        limite = hoje + timedelta(days=7)
+
+        return DashboardRepository._contar(
+            db.query(func.count(Prazo.id_prazo))
+            .join(CasoJuridico, CasoJuridico.id_caso == Prazo.id_caso)
+            .filter(
+                CasoJuridico.id_aluno_responsavel == id_aluno,
+                Prazo.data_limite >= hoje,
+                Prazo.data_limite <= limite,
+                Prazo.situacao == "Pendente"
+            )
+        )
+
+    # ============================================================
+    # CONSULTAS ESPECÍFICAS PARA O DASHBOARD DO PROFESSOR
+    # ============================================================
+
+    @staticmethod
+    def obter_total_casos_por_professor(
+        db: Session, id_professor: int
+    ) -> int:
+        return DashboardRepository._contar(
+            db.query(func.count(CasoJuridico.id_caso))
+            .filter(
+                CasoJuridico.id_professor_orientador == id_professor
+            )
+        )
+
+    @staticmethod
+    def obter_total_alunos_por_professor(
+        db: Session, id_professor: int
+    ) -> int:
+        return DashboardRepository._contar(
+            db.query(func.count(func.distinct(
+                CasoJuridico.id_aluno_responsavel
+            )))
+            .filter(
+                CasoJuridico.id_professor_orientador == id_professor,
+                CasoJuridico.id_aluno_responsavel.isnot(None)
+            )
+        )
+
+    @staticmethod
+    def obter_total_atividades_por_professor(
+        db: Session, id_professor: int
+    ) -> int:
+        return DashboardRepository._contar(
+            db.query(func.count(Atividade.id_atividade))
+            .join(CasoJuridico, CasoJuridico.id_caso == Atividade.id_caso)
+            .filter(
+                CasoJuridico.id_professor_orientador == id_professor
+            )
+        )
+
+    @staticmethod
+    def obter_total_prazos_proximos_por_professor(
+        db: Session, id_professor: int
+    ) -> int:
+        hoje = date.today()
+        limite = hoje + timedelta(days=7)
+
+        return DashboardRepository._contar(
+            db.query(func.count(Prazo.id_prazo))
+            .join(CasoJuridico, CasoJuridico.id_caso == Prazo.id_caso)
+            .filter(
+                CasoJuridico.id_professor_orientador == id_professor,
+                Prazo.data_limite >= hoje,
+                Prazo.data_limite <= limite,
+                Prazo.situacao == "Pendente"
+            )
+        )
+
+
+    # ============================================================
+    # LISTAS DA VISÃO GERAL DO ALUNO
+    # ============================================================
+
+    @staticmethod
+    def obter_atividades_recentes_por_aluno(
+        db: Session, id_aluno: int
+    ) -> list[dict]:
+        resultados = (
+            db.query(Atividade, CasoJuridico.codigo_interno)
+            .join(
+                CasoJuridico,
+                CasoJuridico.id_caso == Atividade.id_caso
+            )
+            .filter(
+                CasoJuridico.id_aluno_responsavel == id_aluno
+            )
+            .order_by(Atividade.data_criacao.desc())
+            .limit(5)
+            .all()
+        )
+
+        return [
+            {
+                "id_atividade": atividade.id_atividade,
+                "titulo": atividade.titulo,
+                "codigo_caso": codigo_caso,
+                "situacao": atividade.situacao,
+                "data_prevista": atividade.data_prevista
+            }
+            for atividade, codigo_caso in resultados
+        ]
+
+    @staticmethod
+    def obter_prazos_proximos_por_aluno(
+        db: Session, id_aluno: int
+    ) -> list[dict]:
+        hoje = date.today()
+        limite = hoje + timedelta(days=7)
+
+        resultados = (
+            db.query(Prazo, CasoJuridico.codigo_interno)
+            .join(
+                CasoJuridico,
+                CasoJuridico.id_caso == Prazo.id_caso
+            )
+            .filter(
+                CasoJuridico.id_aluno_responsavel == id_aluno,
+                CasoJuridico.situacao != "Encerrado",
+                Prazo.data_limite >= hoje,
+                Prazo.data_limite <= limite,
+                Prazo.situacao == "Pendente"
+            )
+            .order_by(Prazo.data_limite.asc())
+            .limit(5)
+            .all()
+        )
+
+        return [
+            {
+                "id_prazo": prazo.id_prazo,
+                "descricao": prazo.descricao,
+                "codigo_caso": codigo_caso,
+                "situacao": prazo.situacao,
+                "data_limite": prazo.data_limite
+            }
+            for prazo, codigo_caso in resultados
+        ]
+
+    # ============================================================
+    # LISTAS DA VISÃO GERAL DO PROFESSOR
+    # ============================================================
+
+    @staticmethod
+    def obter_atividades_recentes_por_professor(
+        db: Session, id_professor: int
+    ) -> list[dict]:
+        resultados = (
+            db.query(Atividade, CasoJuridico.codigo_interno)
+            .join(
+                CasoJuridico,
+                CasoJuridico.id_caso == Atividade.id_caso
+            )
+            .filter(
+                CasoJuridico.id_professor_orientador == id_professor
+            )
+            .order_by(Atividade.data_criacao.desc())
+            .limit(5)
+            .all()
+        )
+
+        return [
+            {
+                "id_atividade": atividade.id_atividade,
+                "titulo": atividade.titulo,
+                "codigo_caso": codigo_caso,
+                "situacao": atividade.situacao,
+                "data_prevista": atividade.data_prevista
+            }
+            for atividade, codigo_caso in resultados
+        ]
+
+    @staticmethod
+    def obter_prazos_proximos_por_professor(
+        db: Session, id_professor: int
+    ) -> list[dict]:
+        hoje = date.today()
+        limite = hoje + timedelta(days=7)
+
+        resultados = (
+            db.query(Prazo, CasoJuridico.codigo_interno)
+            .join(
+                CasoJuridico,
+                CasoJuridico.id_caso == Prazo.id_caso
+            )
+            .filter(
+                CasoJuridico.id_professor_orientador == id_professor,
+                CasoJuridico.situacao != "Encerrado",
+                Prazo.data_limite >= hoje,
+                Prazo.data_limite <= limite,
+                Prazo.situacao == "Pendente"
+            )
+            .order_by(Prazo.data_limite.asc())
+            .limit(5)
+            .all()
+        )
+
+        return [
+            {
+                "id_prazo": prazo.id_prazo,
+                "descricao": prazo.descricao,
+                "codigo_caso": codigo_caso,
+                "situacao": prazo.situacao,
+                "data_limite": prazo.data_limite
+            }
+            for prazo, codigo_caso in resultados
+        ]
+
+
