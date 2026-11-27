@@ -88,7 +88,7 @@ export default function DashboardLayout() {
         { label: 'Atendimentos', icon: ClipboardList, path: '/atendimentos' },
         { label: 'Casos jurídicos', icon: FolderOpen, path: '/casos-juridicos' },
         { label: 'Atividades', icon: ClipboardList, path: '/atividades' },
-        { label: 'Prazos', icon: CalendarClock },
+        { label: 'Prazos', icon: CalendarClock, path: '/prazos' },
         { label: 'Documentos', icon: FileText },
         { label: 'Histórico', icon: History },
     ];

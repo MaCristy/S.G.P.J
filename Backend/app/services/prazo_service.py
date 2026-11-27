@@ -327,6 +327,10 @@ class PrazoService:
         elif usuario.perfil == "Gestão":
 
             dados_prazo = dados.model_dump()
+            if not dados_prazo.get("id_responsavel"):
+                raise ValueError(
+                    "Selecione o usuário responsável pelo prazo."
+                )
 
             # Exige justificativa quando a Gestão cadastra um prazo rejeitado.
             if dados_prazo["situacao"] == "Rejeitado":

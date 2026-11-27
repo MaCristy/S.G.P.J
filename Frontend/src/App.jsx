@@ -17,6 +17,7 @@ import SolicitacoesCadastroPage from './pages/SolicitacoesCadastroPage.jsx';
 import AtendimentosPage from './pages/AtendimentosPage.jsx';
 import CasosJuridicosPage from './pages/CasosJuridicosPage.jsx';
 import AtividadesPage from './pages/AtividadesPage.jsx';
+import PrazosPage from './pages/PrazosPage.jsx';
 
 import { useAuth } from './contexts/AuthContext.jsx';
 
@@ -116,6 +117,12 @@ export default function App() {
         <Route
           path="/atividades"
           element={<AtividadesPage />}
+        />
+
+        {/* Prazos. */}
+        <Route
+          path="/prazos"
+          element={<PrazosPage />}
         />
       </Route>
 

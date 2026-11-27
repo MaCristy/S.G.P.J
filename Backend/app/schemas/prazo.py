@@ -34,7 +34,7 @@ class PrazoCreate(BaseModel):
 
     situacao: SituacaoPrazo = "Pendente"
 
-    id_responsavel: int = Field(gt=0)
+    id_responsavel: int | None = Field(default=None, gt=0)
     observacoes: str | None = None
 
 
