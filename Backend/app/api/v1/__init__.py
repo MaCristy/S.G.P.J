@@ -28,7 +28,9 @@ from app.api.v1.routers import (
     historico_caso,              # Consulta do histórico dos casos
     auth,                        # Autenticação e acesso ao sistema
     dashboard,                   # Indicadores e informações do dashboard
-    solicitacao_cadastro         # Cadastro público e análise de solicitações
+    solicitacao_cadastro,        # Cadastro público e análise de solicitações
+    notificacoes                 # Notificações dos usuários
+
 )
 
 
@@ -114,4 +116,9 @@ api_router_v1.include_router(
 # Solicitações de cadastro: recebe pedidos públicos e permite análise pela Gestão.
 api_router_v1.include_router(
     solicitacao_cadastro.router,
+)
+
+# Notificações: disponibiliza as notificações individuais dos usuários.
+api_router_v1.include_router(
+    notificacoes.router,
 )

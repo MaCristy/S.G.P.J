@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard,
@@ -18,6 +18,11 @@ import {
     CheckCircle2,
     UserPlus,
 } from 'lucide-react';
+import {
+    listarNotificacoes,
+    contarNotificacoesNaoLidas,
+    marcarNotificacaoComoLida,
+} from '../services/notificacaoService.js';
 
 import { useAuth } from '../contexts/AuthContext.jsx';
 
@@ -35,6 +40,57 @@ export default function DashboardLayout() {
 
     // Armazena o texto digitado na pesquisa.
     const [searchTerm, setSearchTerm] = useState('');
+
+    // Armazena as notificações do usuário autenticado.
+    const [notificacoes, setNotificacoes] = useState([]);
+
+    // Armazena a quantidade de notificações ainda não lidas.
+    const [totalNaoLidas, setTotalNaoLidas] = useState(0);
+
+    // Controla a abertura e o fechamento do painel de notificações.
+    const [notificacoesAbertas, setNotificacoesAbertas] = useState(false);
+
+    // Busca as notificações e atualiza o contador do sino.
+    async function carregarNotificacoes() {
+        try {
+            const [lista, quantidade] = await Promise.all([
+                listarNotificacoes(),
+                contarNotificacoesNaoLidas(),
+            ]);
+
+            setNotificacoes(lista || []);
+            setTotalNaoLidas(quantidade?.total || 0);
+        } catch (erro) {
+            console.error('Erro ao carregar notificações:', erro);
+        }
+    }
+
+    // Marca uma notificação como lida e atualiza o contador.
+    async function handleMarcarComoLida(idNotificacao) {
+        try {
+            await marcarNotificacaoComoLida(idNotificacao);
+
+            await carregarNotificacoes();
+        } catch (erro) {
+            console.error('Erro ao marcar notificação como lida:', erro);
+        }
+    }
+
+    // Abre ou fecha o painel de notificações.
+    async function handleToggleNotificacoes() {
+        const abrir = !notificacoesAbertas;
+
+        setNotificacoesAbertas(abrir);
+
+        if (abrir) {
+            await carregarNotificacoes();
+        }
+    }
+
+    // Carrega as notificações assim que o painel é aberto.
+    useEffect(() => {
+        carregarNotificacoes();
+    }, []);
 
     const navigate = useNavigate();
     const location = useLocation();
@@ -196,15 +252,78 @@ export default function DashboardLayout() {
                     )}
 
                     <div className="dashboard-header-actions">
-                        {/* Botão visual de notificações. */}
+                        {/* Botão de notificações. */}
                         <button
                             type="button"
                             className="notification-button"
                             aria-label="Notificações"
+                            aria-expanded={notificacoesAbertas}
+                            onClick={handleToggleNotificacoes}
                         >
                             <Bell size={20} />
-                            <span />
+
+                            {totalNaoLidas > 0 && (
+                                <span>
+                                    {totalNaoLidas > 9 ? '9+' : totalNaoLidas}
+                                </span>
+                            )}
                         </button>
+                        {notificacoesAbertas && (
+                            <div className="notifications-panel">
+                                <div className="notifications-header">
+                                    <strong>Notificações</strong>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setNotificacoesAbertas(false)}
+                                        aria-label="Fechar notificações"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+
+                                <div className="notifications-list">
+                                    {notificacoes.length === 0 ? (
+                                        <p className="notifications-empty">
+                                            Você não possui notificações.
+                                        </p>
+                                    ) : (
+                                        notificacoes.map((notificacao) => (
+                                            <div
+                                                key={notificacao.id_notificacao}
+                                                className={`notification-item ${notificacao.lida ? 'read' : 'unread'
+                                                    }`}
+                                            >
+                                                <div className="notification-content">
+                                                    <strong>{notificacao.titulo}</strong>
+
+                                                    <p>{notificacao.mensagem}</p>
+
+                                                    <small>
+                                                        {new Date(
+                                                            notificacao.data_criacao
+                                                        ).toLocaleString('pt-BR')}
+                                                    </small>
+                                                </div>
+
+                                                {!notificacao.lida && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            handleMarcarComoLida(
+                                                                notificacao.id_notificacao
+                                                            )
+                                                        }
+                                                    >
+                                                        Marcar como lida
+                                                    </button>
+                                                )}
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        )}
 
                         {/* Apresenta a identificação correspondente ao perfil autenticado. */}
                         <div className="dashboard-user">

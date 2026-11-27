@@ -1565,3 +1565,181 @@ input {
   background: #EAF2FB;
   border-color: #003874;
 }
+
+
+/* =========================================
+   PAINEL DE NOTIFICAÇÕES
+========================================= */
+
+.dashboard-header-actions {
+  position: relative;
+}
+
+/* Botão do sino */
+.notification-button {
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.notification-button:hover {
+  background: #EAF2FB;
+  color: #003874;
+}
+
+/* Contador de notificações não lidas */
+.notification-button>span {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: auto;
+  min-width: 17px;
+  height: 17px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border: 2px solid #FFFFFF;
+  border-radius: 20px;
+  background: #E3B103;
+  color: #003874;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+/* Painel principal */
+.notifications-panel {
+  position: absolute;
+  top: calc(100% + 18px);
+  right: 0;
+  z-index: 1200;
+  width: 360px;
+  max-width: calc(100vw - 30px);
+  overflow: hidden;
+  border: 1px solid #D9DEE8;
+  border-radius: 12px;
+  background: #FFFFFF;
+  box-shadow: 0 12px 35px rgba(16, 24, 40, 0.15);
+}
+
+/* Cabeçalho do painel */
+.notifications-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 17px 19px;
+  border-bottom: 1px solid #EAECF0;
+}
+
+.notifications-header strong {
+  color: #003874;
+  font: 700 15px 'Manrope', sans-serif;
+}
+
+.notifications-header button {
+  width: 29px;
+  height: 29px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: #667085;
+  font-size: 21px;
+  cursor: pointer;
+}
+
+.notifications-header button:hover {
+  background: #F4F5FA;
+  color: #003874;
+}
+
+/* Lista de notificações */
+.notifications-list {
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+/* Mensagem quando não existem notificações */
+.notifications-empty {
+  margin: 0;
+  padding: 35px 20px;
+  color: #667085;
+  font-size: 12px;
+  text-align: center;
+}
+
+/* Cada notificação */
+.notification-item {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 17px 19px;
+  border-bottom: 1px solid #EAECF0;
+  transition: background 0.2s;
+}
+
+.notification-item:last-child {
+  border-bottom: none;
+}
+
+.notification-item:hover {
+  background: #F8FAFC;
+}
+
+.notification-item.unread {
+  background: #F3F7FC;
+  border-left: 3px solid #E3B103;
+}
+
+.notification-item.read {
+  border-left: 3px solid transparent;
+}
+
+/* Conteúdo da notificação */
+.notification-content strong {
+  display: block;
+  color: #202938;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.notification-content p {
+  margin: 7px 0;
+  color: #667085;
+  font-size: 11px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.notification-content small {
+  color: #98A2B3;
+  font-size: 9px;
+}
+
+/* Botão para marcar como lida */
+.notification-item>button {
+  align-self: flex-start;
+  padding: 7px 10px;
+  border: 1px solid #D9DEE8;
+  border-radius: 6px;
+  background: #FFFFFF;
+  color: #003874;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.notification-item>button:hover {
+  border-color: #003874;
+  background: #EAF2FB;
+}
+
+@media (max-width: 480px) {
+  .notifications-panel {
+    right: -5px;
+    width: 320px;
+  }
+}
